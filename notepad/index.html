@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>备忘录 - Workbench</title>
+  <link rel="stylesheet" href="../assets/css/variables.css">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../assets/css/components/card.css">
+  <link rel="stylesheet" href="../assets/css/components/modal.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>备忘录</h1>
+      <p class="tool-description">随手记录，随时查看</p>
+    </header>
+
+    <main class="tool-main">
+      <!-- 工具栏：搜索 + 分类过滤 + 新增 -->
+      <div class="toolbar">
+        <div class="toolbar-group" style="flex:1;">
+          <input type="text" id="search-input" class="form-input" placeholder="搜索备忘..." style="max-width:240px;">
+          <div class="select-wrapper">
+            <select id="filter-category">
+              <option value="">全部分类</option>
+            </select>
+          </div>
+        </div>
+        <div class="toolbar-group">
+          <button class="btn btn-primary" id="btn-add">+ 新增备忘</button>
+        </div>
+      </div>
+
+      <!-- 备忘列表 -->
+      <div id="notepad-list" class="notepad-list"></div>
+
+      <!-- 空状态 -->
+      <div id="empty-state" class="empty-state" style="display:none;">
+        <p>还没有备忘，点击「新增备忘」开始记录</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- 新增/编辑模态框 -->
+  <div id="modal-note" class="modal" style="display:none;">
+    <div class="modal-backdrop" data-action="close-modal"></div>
+    <div class="modal-content" style="max-width:560px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-title">新增备忘</h2>
+        <button class="btn-icon" data-action="close-modal" aria-label="关闭">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="note-title">标题</label>
+          <input type="text" id="note-title" class="form-input" placeholder="备忘标题">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="note-content">内容</label>
+          <textarea id="note-content" class="form-input notepad-textarea" placeholder="备忘内容..." rows="6"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:1;">
+            <label class="form-label" for="note-category">分类</label>
+            <div class="input-with-action">
+              <input type="text" id="note-category" class="form-input" list="category-list" placeholder="输入或选择分类">
+              <datalist id="category-list"></datalist>
+            </div>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label class="form-label" for="note-tags">标签</label>
+            <input type="text" id="note-tags" class="form-input" placeholder="用逗号分隔，如：工作,紧急">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-action="close-modal">取消</button>
+        <button class="btn btn-primary" id="btn-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 删除确认模态框 -->
+  <div id="modal-delete" class="modal" style="display:none;">
+    <div class="modal-backdrop" data-action="close-delete-modal"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">确认删除</h2>
+        <button class="btn-icon" data-action="close-delete-modal" aria-label="关闭">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>确定要删除这条备忘吗？此操作不可恢复。</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-action="close-delete-modal">取消</button>
+        <button class="btn btn-danger" id="btn-confirm-delete">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/utils.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

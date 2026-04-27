@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workbench - 开发者工作台</title>
+  <link rel="stylesheet" href="assets/css/variables.css">
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/index.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="sidebar-header">
+        <div class="sidebar-title">Workbench</div>
+        <div class="sidebar-subtitle">开发者工作台</div>
+      </div>
+
+      <nav class="menu">
+        <button class="menu-item" type="button" data-nav="links">
+          <span class="menu-icon" aria-hidden="true">🔗</span>
+          <span class="menu-text">常用链接</span>
+        </button>
+
+        <button class="menu-item" type="button" data-nav="notepad">
+          <span class="menu-icon" aria-hidden="true">📒</span>
+          <span class="menu-text">备忘录</span>
+        </button>
+
+        <div class="menu-group">
+          <button class="menu-item menu-item-group" type="button" data-toggle="toolbox" aria-expanded="true">
+            <span class="menu-icon" aria-hidden="true">🧰</span>
+            <span class="menu-text">工具箱</span>
+            <span class="menu-caret" aria-hidden="true">▾</span>
+          </button>
+          <div class="menu-sub" data-group="toolbox">
+            <button class="menu-item menu-sub-item" type="button" data-nav="json">
+              <span class="menu-icon" aria-hidden="true">📝</span>
+              <span class="menu-text">JSON 工具</span>
+            </button>
+            <button class="menu-item menu-sub-item" type="button" data-nav="file-generator">
+              <span class="menu-icon" aria-hidden="true">📄</span>
+              <span class="menu-text">文件生成器</span>
+            </button>
+            <button class="menu-item menu-sub-item" type="button" data-nav="image-generator">
+              <span class="menu-icon" aria-hidden="true">🖼️</span>
+              <span class="menu-text">图片生成器</span>
+            </button>
+            <button class="menu-item menu-sub-item" type="button" data-nav="properties-yaml">
+              <span class="menu-icon" aria-hidden="true">⚙️</span>
+              <span class="menu-text">Properties ↔ YAML</span>
+            </button>
+            <button class="menu-item menu-sub-item" type="button" data-nav="svg-editor">
+              <span class="menu-icon" aria-hidden="true">🧩</span>
+              <span class="menu-text">SVG 编辑器</span>
+            </button>
+            <button class="menu-item menu-sub-item" type="button" data-nav="md5">
+              <span class="menu-icon" aria-hidden="true">#️⃣</span>
+              <span class="menu-text">MD5 计算</span>
+            </button>
+            <button class="menu-item menu-sub-item" type="button" data-nav="qrcode">
+              <span class="menu-icon" aria-hidden="true">📱</span>
+              <span class="menu-text">二维码工具</span>
+            </button>
+            <button class="menu-item menu-sub-item" type="button" data-nav="timestamp">
+              <span class="menu-icon" aria-hidden="true">🕐</span>
+              <span class="menu-text">时间戳转换</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <footer class="sidebar-footer">
+        <div class="sidebar-footer-text">&copy; 2026 持续更新中…</div>
+      </footer>
+    </aside>
+
+    <main class="content" aria-label="内容区">
+      <iframe
+        id="module-frame"
+        class="module-frame"
+        title="模块内容"
+        src="./links/index.html"
+        loading="lazy"
+      ></iframe>
+    </main>
+  </div>
+
+  <script src="assets/js/index.js"></script>
+</body>
+</html>

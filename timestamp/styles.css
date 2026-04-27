@@ -1,0 +1,120 @@
+/* 时间戳转换 - 工具差异样式 */
+
+/* ── 实时时间戳 ── */
+.ts-live {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.ts-live-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.ts-live-label {
+  width: 56px;
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.ts-live-value {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-lg);
+  color: var(--color-primary);
+  background: var(--color-bg-tertiary);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-md);
+  min-width: 200px;
+  user-select: all;
+}
+
+.ts-live-date {
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  min-width: auto;
+}
+
+/* ── 转换区 ── */
+.ts-convert-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.ts-input-row {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.ts-input-row .form-input {
+  flex: 1;
+}
+
+.ts-now-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── 转换结果 ── */
+.ts-result {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.ts-result-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.ts-result-label {
+  width: 80px;
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.ts-result-item code {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background: var(--color-bg);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  word-break: break-all;
+  user-select: all;
+}
+
+/* ── 响应式 ── */
+@media (max-width: 560px) {
+  .ts-input-row {
+    flex-wrap: wrap;
+  }
+
+  .ts-input-row .form-input {
+    min-width: 0;
+  }
+
+  .ts-live-value {
+    min-width: 0;
+    font-size: var(--font-size-base);
+  }
+
+  .ts-result-item {
+    flex-wrap: wrap;
+  }
+
+  .ts-result-label {
+    width: auto;
+  }
+}

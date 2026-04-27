@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>常用链接 - Workbench</title>
+  <link rel="stylesheet" href="../assets/css/variables.css">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../assets/css/components/card.css">
+  <link rel="stylesheet" href="../assets/css/components/modal.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>常用链接</h1>
+      <p class="tool-description">维护常用网址，支持分类、导入导出与本地持久化</p>
+    </header>
+
+    <main class="tool-main">
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <button class="btn btn-primary" data-action="add-link">添加链接</button>
+          <button class="btn btn-secondary" data-action="open-bulk-import">批量导入</button>
+        </div>
+        <div class="toolbar-group">
+          <button class="btn btn-secondary" data-action="export-config">导出配置</button>
+          <button class="btn btn-secondary" data-action="import-config">导入配置</button>
+        </div>
+      </div>
+
+      <section class="card card-links">
+        <div class="card-body">
+          <div class="filters">
+            <div class="filters-left">
+              <input id="search-input" class="form-input filters-search" type="text" placeholder="搜索名称 / URL / 分类…">
+              <select id="category-select" class="form-input filters-select" aria-label="分类过滤">
+                <option value="">全部分类</option>
+              </select>
+            </div>
+            <div class="filters-right u-text-muted" id="filters-meta"></div>
+          </div>
+          <div class="links-container" id="links-container"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="tool-footer">
+      <p>数据保存在浏览器 localStorage，可通过导入/导出迁移</p>
+    </footer>
+  </div>
+
+  <input type="file" id="file-input" accept=".json" class="u-hidden">
+  <input type="file" id="bookmark-file-input" accept=".html,.htm,text/html" class="u-hidden">
+
+  <div class="modal u-hidden" id="link-modal">
+    <div class="modal-backdrop" data-action="close-modal"></div>
+    <div class="modal-content">
+      <header class="modal-header">
+        <h3 class="modal-title" id="modal-title">添加链接</h3>
+        <button class="btn-icon" data-action="close-modal" title="关闭">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <line stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x1="18" y1="6" x2="6" y2="18"/>
+            <line stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x1="6" y1="18" x2="18" y2="6"/>
+          </svg>
+        </button>
+      </header>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="link-name" class="form-label">名称</label>
+          <input type="text" id="link-name" class="form-input" placeholder="例如：GitHub">
+        </div>
+        <div class="form-group">
+          <label for="link-url" class="form-label">URL</label>
+          <input type="url" id="link-url" class="form-input" placeholder="https://github.com">
+        </div>
+        <div class="form-group">
+          <label for="link-category" class="form-label">分类</label>
+          <select id="link-category-select" class="form-input">
+            <option value="">请选择分类</option>
+            <option value="__new__">➕ 新建分类…</option>
+          </select>
+          <input type="text" id="link-category-input" class="form-input u-hidden" placeholder="输入新分类名称">
+        </div>
+        <div class="form-group">
+          <label for="link-icon" class="form-label">图标（可选）</label>
+          <input type="text" id="link-icon" class="form-input" placeholder="emoji 或 URL">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-action="close-modal">取消</button>
+        <button class="btn btn-primary" data-action="save-link">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal u-hidden" id="bulk-import-modal">
+    <div class="modal-backdrop" data-action="close-bulk-import"></div>
+    <div class="modal-content">
+      <header class="modal-header">
+        <h3 class="modal-title">批量导入</h3>
+        <button class="btn-icon" data-action="close-bulk-import" title="关闭">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <line stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x1="18" y1="6" x2="6" y2="18"/>
+            <line stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x1="6" y1="18" x2="18" y2="6"/>
+          </svg>
+        </button>
+      </header>
+      <div class="modal-body">
+        <div class="import-tabs">
+          <button type="button" class="import-tab is-active" data-import-mode="text">粘贴文本</button>
+          <button type="button" class="import-tab" data-import-mode="bookmarks">书签 HTML</button>
+        </div>
+
+        <div class="import-panel" data-panel="text">
+          <div class="form-group">
+            <label class="form-label" for="bulk-text">内容</label>
+            <textarea id="bulk-text" class="form-input import-textarea" placeholder="支持多行：&#10;1) 仅 URL：https://example.com&#10;2) name,url,category&#10;3) name url category"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="bulk-default-category">默认分类（可选）</label>
+            <input id="bulk-default-category" class="form-input" type="text" placeholder="例如：导入">
+          </div>
+        </div>
+
+        <div class="import-panel u-hidden" data-panel="bookmarks">
+          <p class="u-text-muted" style="margin-top:0;">支持粘贴或上传浏览器导出的书签 HTML（会提取所有链接）。</p>
+          <div class="toolbar-group" style="gap: var(--spacing-sm);">
+            <button class="btn btn-secondary" data-action="upload-bookmarks">上传书签 HTML</button>
+            <button class="btn btn-secondary" data-action="paste-bookmarks">粘贴书签 HTML</button>
+          </div>
+          <div class="form-group" style="margin-top: var(--spacing-md);">
+            <label class="form-label" for="bookmarks-html">书签 HTML</label>
+            <textarea id="bookmarks-html" class="form-input import-textarea" placeholder="在此粘贴书签导出 HTML..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="bookmarks-category">默认分类（可选）</label>
+            <input id="bookmarks-category" class="form-input" type="text" placeholder="例如：书签">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-action="close-bulk-import">取消</button>
+        <button class="btn btn-primary" data-action="do-bulk-import">导入</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/utils.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+/* JSON 工具样式（仅保留工具差异部分；通用组件在 assets/css/components/） */
+
+/* 状态栏 */
+.status-bar {
+  display: flex;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.status-icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-text-muted);
+}
+
+.status-icon.valid {
+  background-color: var(--color-success);
+}
+
+.status-icon.invalid {
+  background-color: var(--color-danger);
+}
+
+.status-text {
+  color: var(--color-text-secondary);
+}
+
+.stats-label {
+  color: var(--color-text-muted);
+}
+
+.stats-value {
+  color: var(--color-text);
+  font-family: var(--font-family-mono);
+  font-size: 0.8125em;
+}
+
+/* 查询区域 */
+.query-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.query-bar {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.query-label {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.query-input {
+  flex: 1;
+  min-width: 200px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family-mono);
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast);
+}
+
+.query-input:hover {
+  border-color: var(--color-border-hover);
+}
+
+.query-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.query-result {
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-height: 80px;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+/* 页脚 */
+/* 动画 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn var(--transition-base);
+}
+
+/* 响应式调整 */
+
+/* 拖放区与覆盖层 */
+.editor-drop-zone {
+  position: relative;
+}
+
+.drop-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(59, 130, 246, 0.08);
+  border: 2px dashed var(--color-primary);
+  border-radius: var(--radius-md);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  color: var(--color-primary);
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.editor-drop-zone.is-dragover .drop-overlay {
+  display: flex;
+}
+
+.drop-overlay-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.editor-header .editor-title {
+  flex: 1;
+}
+
+.editor-header .editor-info {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+.btn-sm {
+  padding: 0.125rem 0.5rem;
+  font-size: var(--font-size-xs);
+}
+
+@media (max-width: 640px) {
+  .toolbar-group {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .toolbar {
+    flex-direction: column;
+  }
+
+  .status-bar {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+}

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MD5 计算 - Workbench</title>
+    <link rel="stylesheet" href="../assets/css/variables.css">
+    <link rel="stylesheet" href="../assets/css/main.css">
+    <link rel="stylesheet" href="../assets/css/components/tool-layout.css">
+    <link rel="stylesheet" href="../assets/css/components/buttons.css">
+    <link rel="stylesheet" href="../assets/css/components/toolbar.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="tool-container">
+        <header class="tool-header">
+            <h1>MD5 计算</h1>
+            <p class="tool-description">支持文本和文件的 MD5 哈希计算</p>
+        </header>
+
+        <main class="tool-main">
+            <div class="md5-section">
+                <label for="md5-input" class="md5-label">输入内容</label>
+                <textarea
+                    id="md5-input"
+                    class="md5-input"
+                    placeholder="在此输入要计算 MD5 的文本..."
+                    rows="5"
+                    spellcheck="false"
+                ></textarea>
+            </div>
+
+            <div class="md5-section">
+                <label class="md5-label">选择文件</label>
+                <div class="file-drop-zone" id="file-drop-zone">
+                    <input type="file" id="file-input" class="file-input" />
+                    <div class="file-drop-hint">
+                        <span class="file-drop-icon">📁</span>
+                        <p>拖拽文件到此处，或 <span class="file-browse">点击选择</span></p>
+                        <p class="file-size-hint">支持大文件分块计算</p>
+                    </div>
+                </div>
+                <div class="file-progress" id="file-progress" hidden>
+                    <div class="file-progress-track">
+                        <div class="file-progress-bar" id="file-progress-bar"></div>
+                    </div>
+                    <span class="file-progress-text" id="file-progress-text">0%</span>
+                </div>
+                <div class="file-info" id="file-info"></div>
+            </div>
+
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <button id="btn-calc" class="btn btn-primary" type="button">计算 MD5</button>
+                    <button id="btn-clear" class="btn btn-secondary" type="button">清空</button>
+                </div>
+                <div class="toolbar-group">
+                    <label class="md5-option">
+                        <input type="checkbox" id="chk-uppercase" />
+                        <span>大写输出</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="md5-section">
+                <label for="md5-output" class="md5-label">MD5 结果</label>
+                <div class="md5-output-wrap">
+                    <input
+                        id="md5-output"
+                        class="md5-output"
+                        type="text"
+                        readonly
+                        placeholder="计算结果将显示在这里"
+                    />
+                    <button id="btn-copy" class="btn btn-icon" type="button" title="复制结果" disabled>📋</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../assets/js/utils.js"></script>
+    <script src="../assets/js/spark-md5.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+/* 备忘录 - 工具差异样式 */
+
+/* ── 备忘列表 ── */
+.notepad-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--spacing-md);
+}
+
+/* ── 备忘卡片 ── */
+.notepad-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.notepad-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-border-hover);
+}
+
+/* 卡片头部 */
+.notepad-card-header {
+  padding: var(--spacing-md) var(--spacing-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+}
+
+.notepad-card-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text);
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.notepad-card-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* 卡片内容 */
+.notepad-card-body {
+  padding: 0 var(--spacing-lg) var(--spacing-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow: hidden;
+}
+
+/* 卡片底部 */
+.notepad-card-footer {
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: auto;
+}
+
+.notepad-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.notepad-card-time {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── 分类标签 ── */
+.notepad-category {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+/* ── 标签 ── */
+.notepad-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.notepad-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-full);
+  line-height: 1.6;
+}
+
+/* ── 危险图标按钮 ── */
+.btn-icon-danger:hover {
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* ── 置顶图标按钮 ── */
+.btn-icon-pin:hover {
+  color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.btn-icon-pin.is-active {
+  color: var(--color-warning);
+}
+
+/* ── 置顶卡片 ── */
+.notepad-card.is-pinned {
+  border-color: var(--color-warning);
+  border-width: 1.5px;
+}
+
+/* ── 表单行 ── */
+.form-row {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+/* ── 文本域 ── */
+.notepad-textarea {
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+/* ── 输入框带操作 ── */
+.input-with-action {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.input-with-action .form-input {
+  flex: 1;
+}
+
+/* ── 响应式 ── */
+@media (max-width: 480px) {
+  .notepad-list {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}

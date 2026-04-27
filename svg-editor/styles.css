@@ -1,0 +1,112 @@
+/* SVG 编辑器差异样式 */
+
+.svg-editor-layout {
+  grid-template-columns: 1fr 1fr;
+}
+
+.preview-panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.preview-title {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.status {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.status.is-success {
+  color: var(--color-success);
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.status.is-error {
+  color: var(--color-danger);
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.preview-body {
+  position: relative;
+  flex: 1;
+  min-height: 500px;
+}
+
+.preview-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.preview-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
+  font-style: italic;
+  padding: var(--spacing-lg);
+  text-align: center;
+  pointer-events: none;
+}
+
+/* 复用 image-generator 的简易 field 外观 */
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 0.25rem 0.5rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.field-label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.field-input {
+  border: none;
+  background: transparent;
+  outline: none;
+}
+
+.field-color {
+  width: 42px;
+  height: 24px;
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  .svg-editor-layout {
+    grid-template-columns: 1fr;
+  }
+}
+

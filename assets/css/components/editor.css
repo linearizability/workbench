@@ -1,0 +1,92 @@
+/* Editor component (used by JSON tool) */
+
+.editor-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+  flex: 1;
+  min-height: 500px;
+}
+
+@media (max-width: 768px) {
+  .editor-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.editor-wrapper {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.editor-title {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.editor-info {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.editor-body {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.editor {
+  width: 100%;
+  height: 100%;
+  padding: var(--spacing-md);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: none;
+  resize: none;
+  overflow: auto;
+}
+
+.editor-output {
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.placeholder {
+  color: var(--color-text-muted);
+  font-style: italic;
+  padding: var(--spacing-md);
+}
+
+/* Prism highlight overrides */
+.editor-output pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-size: var(--font-size-sm);
+}
+
+.editor-output code {
+  padding: 0;
+  background: transparent;
+  font-family: var(--font-family-mono);
+}
+
