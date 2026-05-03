@@ -1,0 +1,59 @@
+/* URL 编解码 - 工具差异样式 */
+
+/* ── 编辑区 ── */
+.url-editor-container {
+  min-height: 420px;
+}
+
+/* ── QueryString 表格 ── */
+.url-query-table-wrapper {
+  overflow: auto;
+  height: 100%;
+}
+
+.url-query-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.url-query-table thead {
+  position: sticky;
+  top: 0;
+}
+
+.url-query-table th {
+  text-align: left;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.url-query-table td {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border);
+  word-break: break-all;
+}
+
+.url-query-table tr:hover td {
+  background: var(--color-bg-secondary);
+}
+
+.url-query-table td code {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  background: var(--color-bg-tertiary);
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-sm);
+}
+
+/* ── 响应式 ── */
+@media (max-width: 768px) {
+  .url-editor-container {
+    min-height: 320px;
+  }
+}

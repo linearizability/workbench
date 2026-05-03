@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>URL 编解码 - Workbench</title>
+  <link rel="stylesheet" href="../assets/css/variables.css">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../assets/css/components/editor.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>URL 编解码</h1>
+      <p class="tool-description">URL 编码、解码与 QueryString 解析</p>
+    </header>
+
+    <main class="tool-main">
+      <!-- 工具栏 -->
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <button class="btn btn-primary" data-mode="encode">编码</button>
+          <button class="btn btn-secondary" data-mode="decode">解码</button>
+          <button class="btn btn-secondary" data-mode="query">解析 QueryString</button>
+        </div>
+        <div class="toolbar-group">
+          <button class="btn btn-secondary" data-action="clear">清空</button>
+        </div>
+      </div>
+
+      <!-- 编辑区：左右两栏 -->
+      <div class="editor-container url-editor-container">
+        <!-- 输入侧 -->
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-title" id="input-label">输入文本</span>
+            <span class="editor-info" id="input-info">0 字符</span>
+            <div class="editor-header-actions">
+              <button class="btn btn-sm btn-secondary" data-action="copy-input">复制</button>
+              <button class="btn btn-sm btn-secondary" data-action="swap">互换 ⇄</button>
+            </div>
+          </div>
+          <div class="editor-body">
+            <textarea class="editor" id="input-editor" placeholder="输入文本或 URL…"></textarea>
+          </div>
+        </div>
+
+        <!-- 输出侧 -->
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-title" id="output-label">编码结果</span>
+            <span class="editor-info" id="output-info">0 字符</span>
+            <div class="editor-header-actions">
+              <button class="btn btn-sm btn-secondary" data-action="copy">复制</button>
+            </div>
+          </div>
+          <div class="editor-body editor-output" id="output-editor">
+            <div class="placeholder">结果将显示在这里…</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/js/utils.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

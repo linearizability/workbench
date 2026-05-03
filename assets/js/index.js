@@ -17,7 +17,8 @@
     'base64': './base64/index.html',
     'qrcode': './qrcode/index.html',
     'timestamp': './timestamp/index.html',
-    'cron': './cron/index.html'
+    'cron': './cron/index.html',
+    'url': './url/index.html'
   };
 
   const elements = {
