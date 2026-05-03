@@ -16,7 +16,8 @@
     'md5': './md5/index.html',
     'base64': './base64/index.html',
     'qrcode': './qrcode/index.html',
-    'timestamp': './timestamp/index.html'
+    'timestamp': './timestamp/index.html',
+    'cron': './cron/index.html'
   };
 
   const elements = {
