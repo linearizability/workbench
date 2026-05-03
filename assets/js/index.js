@@ -14,6 +14,7 @@
     'properties-yaml': './properties-yaml/index.html',
     'svg-editor': './svg-editor/index.html',
     'md5': './md5/index.html',
+    'base64': './base64/index.html',
     'qrcode': './qrcode/index.html',
     'timestamp': './timestamp/index.html'
   };

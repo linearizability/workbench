@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Base64 编解码 - Workbench</title>
+  <link rel="stylesheet" href="../assets/css/variables.css">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../assets/css/components/editor.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>Base64 编解码</h1>
+      <p class="tool-description">文本、图片、文件的 Base64 编码与解码</p>
+    </header>
+
+    <main class="tool-main">
+      <!-- 工具栏 -->
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <button class="btn btn-primary" data-mode="encode">编码</button>
+          <button class="btn btn-secondary" data-mode="decode">解码</button>
+        </div>
+        <div class="toolbar-group">
+          <label class="b64-safe-toggle">
+            <input type="checkbox" id="url-safe">
+            <span>URL Safe</span>
+          </label>
+        </div>
+        <div class="toolbar-group">
+          <button class="btn btn-secondary" data-action="clear">清空</button>
+        </div>
+      </div>
+
+      <!-- 编辑区：左右两栏 -->
+      <div class="editor-container b64-editor-container">
+        <!-- 输入侧 -->
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-title" id="input-label">输入文本</span>
+            <span class="editor-info" id="input-info">0 字符</span>
+            <div class="editor-header-actions">
+              <button class="btn btn-sm btn-secondary" data-action="select-file">选择文件</button>
+              <button class="btn btn-sm btn-secondary" data-action="swap">互换 ⇄</button>
+            </div>
+          </div>
+          <div class="editor-body editor-drop-zone" id="input-drop-zone">
+            <textarea class="editor" id="input-editor" placeholder="输入文本或 Base64，也可拖拽文件到此处…"></textarea>
+            <div class="drop-overlay" id="drop-overlay">
+              <svg class="drop-overlay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <span>释放以导入文件</span>
+            </div>
+          </div>
+          <input type="file" id="file-input" class="u-hidden">
+        </div>
+
+        <!-- 输出侧 -->
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-title" id="output-label">Base64 结果</span>
+            <span class="editor-info" id="output-info">0 字符</span>
+            <div class="editor-header-actions">
+              <button class="btn btn-sm btn-secondary" data-action="copy">复制</button>
+              <button class="btn btn-sm btn-secondary u-hidden" id="btn-copy-datauri" data-action="copy-data-uri">复制 Data URI</button>
+              <button class="btn btn-sm btn-secondary u-hidden" id="btn-download" data-action="download">下载文件</button>
+            </div>
+          </div>
+          <div class="editor-body editor-output" id="output-editor">
+            <div class="placeholder">结果将显示在这里…</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/js/utils.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

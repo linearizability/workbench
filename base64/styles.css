@@ -1,0 +1,94 @@
+/* Base64 编解码 - 工具差异样式 */
+
+/* ── 编辑器 Header 按钮 ── */
+.editor-header-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+/* ── 工具栏 URL Safe 切换 ── */
+.b64-safe-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.b64-safe-toggle input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  width: 16px;
+  height: 16px;
+}
+
+/* ── 编辑区 ── */
+.b64-editor-container {
+  min-height: 460px;
+}
+
+/* ── 拖拽覆盖层（复用 JSON 工具的模式） ── */
+.editor-drop-zone {
+  position: relative;
+}
+
+.drop-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(59, 130, 246, 0.08);
+  border: 2px dashed var(--color-primary);
+  border-radius: var(--radius-md);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  color: var(--color-primary);
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.editor-drop-zone.is-dragover .drop-overlay {
+  display: flex;
+}
+
+.drop-overlay-icon {
+  width: 36px;
+  height: 36px;
+}
+
+/* ── 编辑器底部按钮栏 ── */
+.editor-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── 输出区图片渲染 ── */
+.b64-output-image-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: repeating-conic-gradient(var(--color-bg-tertiary) 0% 25%, var(--color-bg) 0% 50%) 0 0 / 16px 16px;
+  padding: var(--spacing-md);
+}
+
+.b64-output-image {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── 响应式 ── */
+@media (max-width: 768px) {
+  .b64-editor-container {
+    min-height: 360px;
+  }
+}
