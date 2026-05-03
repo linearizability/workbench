@@ -1,0 +1,118 @@
+/* JWT 解码 - 工具差异样式 */
+
+/* ── 编辑区 ── */
+.jwt-editor-container {
+  min-height: 420px;
+}
+
+/* ── 区块 ── */
+.jwt-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.jwt-section {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+}
+
+.jwt-section-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.jwt-section-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.jwt-tag {
+  display: inline-block;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.1);
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.jwt-json {
+  margin: 0 0 var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.jwt-sig {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+/* ── 时间信息 ── */
+.jwt-times {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.jwt-time {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+.jwt-time-label {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  min-width: 3em;
+}
+
+.jwt-time-val {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+}
+
+.jwt-time-rel {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.jwt-time.is-future .jwt-time-rel {
+  color: var(--color-success);
+}
+
+.jwt-time.is-past .jwt-time-rel {
+  color: var(--color-danger);
+}
+
+/* ── 响应式 ── */
+@media (max-width: 768px) {
+  .jwt-editor-container {
+    min-height: 320px;
+  }
+
+  .jwt-times {
+    grid-template-columns: 1fr;
+  }
+}
