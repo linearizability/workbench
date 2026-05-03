@@ -19,7 +19,8 @@
     'timestamp': './timestamp/index.html',
     'cron': './cron/index.html',
     'url': './url/index.html',
-    'jwt': './jwt/index.html'
+    'jwt': './jwt/index.html',
+    'uuid': './uuid/index.html'
   };
 
   const elements = {
