@@ -23,7 +23,8 @@
     'uuid': './uuid/index.html',
     'regex': './regex/index.html',
     'diff': './diff/index.html',
-    'json-to-struct': './json-to-struct/index.html'
+    'json-to-struct': './json-to-struct/index.html',
+    'http-request': './http-request/index.html'
   };
 
   const elements = {

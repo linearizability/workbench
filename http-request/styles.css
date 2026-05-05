@@ -1,0 +1,268 @@
+/* HTTP 请求 - 工具差异样式 */
+
+/* ── 请求栏 ── */
+.http-request-bar {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-md);
+  align-items: center;
+}
+
+.http-method {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: pointer;
+  min-width: 80px;
+}
+
+.http-url {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family-mono);
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.http-url:focus {
+  border-color: var(--color-primary);
+}
+
+/* ── 配置区 ── */
+.http-config {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.http-config-section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.http-config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.http-config-title {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.http-body-type {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: pointer;
+}
+
+.http-body-area {
+  padding: var(--spacing-sm);
+}
+
+.http-body-area .editor {
+  min-height: 120px;
+  font-size: var(--font-size-sm);
+}
+
+/* ── Key-Value 列表 ── */
+.http-kv-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+}
+
+.http-kv-row {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.http-kv-key,
+.http-kv-val {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family-mono);
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.http-kv-key:focus,
+.http-kv-val:focus {
+  border-color: var(--color-primary);
+}
+
+.http-kv-key {
+  width: 35%;
+}
+
+.http-kv-val {
+  flex: 1;
+}
+
+.http-kv-del {
+  padding: 0 var(--spacing-xs);
+  font-size: var(--font-size-lg);
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.http-kv-del:hover {
+  color: var(--color-danger);
+}
+
+/* ── 结果区 ── */
+.http-result-container {
+  min-height: 300px;
+}
+
+.http-resp-meta {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.http-resp-status {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.http-resp-status.is-ok {
+  color: var(--color-success);
+}
+
+.http-resp-status.is-err {
+  color: var(--color-danger);
+}
+
+.http-resp-time {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-left: auto;
+}
+
+.http-resp-section-title {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.http-resp-headers {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.8;
+}
+
+.http-resp-hkey {
+  color: var(--color-text-secondary);
+}
+
+.http-resp-hval {
+  color: var(--color-text);
+}
+
+.http-resp-body {
+  margin: 0;
+  padding: var(--spacing-md);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-x: auto;
+}
+
+.http-resp-error {
+  padding: var(--spacing-md);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  word-break: break-all;
+}
+
+.http-cors-tip {
+  margin: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  line-height: 1.7;
+}
+
+.http-cors-tip strong {
+  color: var(--color-warning);
+}
+
+/* ── 代码生成 ── */
+.http-code {
+  margin: 0;
+  padding: var(--spacing-md);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  white-space: pre;
+  word-break: normal;
+  overflow-x: auto;
+  color: var(--color-text);
+}
+
+/* ── 响应式 ── */
+@media (max-width: 768px) {
+  .http-request-bar {
+    flex-wrap: wrap;
+  }
+
+  .http-url {
+    min-width: 100%;
+    order: 3;
+  }
+
+  .http-config {
+    grid-template-columns: 1fr;
+  }
+
+  .http-kv-key {
+    width: 40%;
+  }
+}
