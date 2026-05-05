@@ -1,0 +1,250 @@
+/* 正则测试 - 工具差异样式 */
+
+/* ── 编辑区 ── */
+.regex-editor-container {
+  min-height: 480px;
+}
+
+/* ── 左栏布局 ── */
+.regex-left {
+  gap: 0;
+}
+
+.regex-config {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.regex-config-body {
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.regex-test {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── 正则输入栏 ── */
+.regex-pattern-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.regex-delimiter {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-lg);
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+.regex-pattern-input {
+  flex: 1;
+  min-width: 120px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.regex-pattern-input:focus {
+  border-color: var(--color-primary);
+}
+
+.regex-flags {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.regex-flag {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.regex-flag input {
+  cursor: pointer;
+}
+
+/* ── 预设 ── */
+.regex-presets {
+  display: flex;
+}
+
+.regex-preset-select {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: pointer;
+}
+
+.regex-preset-select:focus {
+  border-color: var(--color-primary);
+}
+
+/* ── 结果区 ── */
+.regex-highlight {
+  padding: var(--spacing-md);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--color-text);
+}
+
+.regex-match {
+  background: rgba(245, 158, 11, 0.25);
+  border-bottom: 2px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  padding: 0 0.125rem;
+  color: var(--color-text);
+}
+
+.regex-no-match {
+  padding: var(--spacing-md);
+  color: var(--color-text-muted);
+}
+
+.regex-plain-text {
+  margin: 0;
+  padding: 0 var(--spacing-md) var(--spacing-md);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--color-text);
+}
+
+.regex-error {
+  padding: var(--spacing-md);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+/* ── 匹配详情 ── */
+.regex-details {
+  border-top: 1px solid var(--color-border);
+}
+
+.regex-details-title {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.regex-match-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.regex-match-item {
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.regex-match-item:last-child {
+  border-bottom: none;
+}
+
+.regex-match-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.regex-match-num {
+  display: inline-block;
+  min-width: 1.5rem;
+  text-align: center;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.1);
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+}
+
+.regex-match-pos {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.regex-match-text {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background: var(--color-bg-tertiary);
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  word-break: break-all;
+}
+
+.regex-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+  padding-left: var(--spacing-lg);
+}
+
+.regex-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+}
+
+.regex-group-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  min-width: 4.5rem;
+}
+
+.regex-group code {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  background: var(--color-bg-tertiary);
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-sm);
+  word-break: break-all;
+}
+
+/* ── 响应式 ── */
+@media (max-width: 768px) {
+  .regex-editor-container {
+    min-height: 360px;
+  }
+
+  .regex-pattern-bar {
+    flex-wrap: wrap;
+  }
+
+  .regex-flags {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

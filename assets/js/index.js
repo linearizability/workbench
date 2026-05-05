@@ -20,7 +20,8 @@
     'cron': './cron/index.html',
     'url': './url/index.html',
     'jwt': './jwt/index.html',
-    'uuid': './uuid/index.html'
+    'uuid': './uuid/index.html',
+    'regex': './regex/index.html'
   };
 
   const elements = {
