@@ -21,7 +21,8 @@
     'url': './url/index.html',
     'jwt': './jwt/index.html',
     'uuid': './uuid/index.html',
-    'regex': './regex/index.html'
+    'regex': './regex/index.html',
+    'diff': './diff/index.html'
   };
 
   const elements = {
