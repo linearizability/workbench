@@ -22,7 +22,8 @@
     'jwt': './jwt/index.html',
     'uuid': './uuid/index.html',
     'regex': './regex/index.html',
-    'diff': './diff/index.html'
+    'diff': './diff/index.html',
+    'json-to-struct': './json-to-struct/index.html'
   };
 
   const elements = {

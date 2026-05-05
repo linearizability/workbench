@@ -1,0 +1,65 @@
+/* JSON 转 Struct - 工具差异样式 */
+
+/* ── 编辑区 ── */
+.struct-editor-container {
+  min-height: 480px;
+}
+
+/* ── 工具栏配置 ── */
+.struct-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.struct-toggle input {
+  cursor: pointer;
+}
+
+.struct-input-sm {
+  width: 120px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.struct-input-sm:focus {
+  border-color: var(--color-primary);
+}
+
+/* ── 输出代码块 ── */
+.struct-code {
+  margin: 0;
+  padding: var(--spacing-md);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  white-space: pre;
+  word-break: normal;
+  overflow-x: auto;
+  color: var(--color-text);
+}
+
+.struct-error {
+  padding: var(--spacing-md);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+/* ── 响应式 ── */
+@media (max-width: 768px) {
+  .struct-editor-container {
+    min-height: 360px;
+  }
+
+  .struct-input-sm {
+    width: 100px;
+  }
+}
