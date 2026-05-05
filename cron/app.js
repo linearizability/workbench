@@ -123,7 +123,7 @@
     let desc = '';
     try {
       if (typeof cronstrue !== 'undefined' && cronstrue.toString) {
-        desc = cronstrue.toString(expr, { locale: 'zh_CN' });
+        desc = cronstrue.toString(expr, { locale: 'zh_CN', use24HourTimeFormat: true });
       } else {
         desc = 'cronstrue 库未加载';
       }
@@ -144,7 +144,7 @@
 
     try {
       if (typeof cronstrue !== 'undefined' && cronstrue.toString) {
-        el.genDesc.textContent = cronstrue.toString(expr, { locale: 'zh_CN' });
+        el.genDesc.textContent = cronstrue.toString(expr, { locale: 'zh_CN', use24HourTimeFormat: true });
       } else {
         el.genDesc.textContent = '-';
       }
@@ -185,6 +185,7 @@
     el.fMon.textContent  = '-';
     el.fDow.textContent  = '-';
   }
+
 
   function relativeTime(date) {
     const diff = date.getTime() - Date.now();
