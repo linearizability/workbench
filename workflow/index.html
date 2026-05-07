@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工作流编排 - Workbench</title>
+  <link rel="stylesheet" href="../assets/css/variables.css">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>工作流编排</h1>
+      <p class="tool-description">拖拽工具节点、连线、配置参数，构建自动化流程</p>
+    </header>
+
+    <main class="tool-main workflow-main">
+      <!-- 左侧工具箱 -->
+      <aside class="workflow-sidebar">
+        <div class="workflow-sidebar-title">工具箱</div>
+        <div class="workflow-tool-list" id="tool-list"></div>
+      </aside>
+
+      <!-- 中央画布 -->
+      <div class="workflow-canvas-wrapper">
+        <div class="workflow-toolbar">
+          <div class="toolbar-group">
+            <button class="btn btn-primary" data-action="run">运行</button>
+            <button class="btn btn-secondary" data-action="clear">清空画布</button>
+          </div>
+          <div class="toolbar-group">
+            <button class="btn btn-sm btn-secondary" data-action="save">保存</button>
+            <button class="btn btn-sm btn-secondary" data-action="load">导入</button>
+          </div>
+        </div>
+
+        <div class="workflow-canvas" id="workflow-canvas">
+          <svg class="workflow-svg" id="workflow-svg"></svg>
+          <div class="workflow-nodes" id="workflow-nodes"></div>
+          <div class="workflow-hint">双击左侧工具添加到画布，拖拽端口连线</div>
+        </div>
+      </div>
+
+      <!-- 右侧属性面板 -->
+      <aside class="workflow-props" id="workflow-props">
+        <div class="workflow-props-placeholder">选中节点以配置参数</div>
+      </aside>
+    </main>
+
+    <!-- 底部日志面板 -->
+    <div class="workflow-logs" id="workflow-logs">
+      <div class="workflow-logs-header">
+        <span>执行日志</span>
+        <button class="btn btn-sm btn-secondary" data-action="clear-logs">清空</button>
+      </div>
+      <div class="workflow-logs-body" id="workflow-logs-body"></div>
+    </div>
+  </div>
+
+  <script src="../assets/js/utils.js"></script>
+  <script src="../assets/js/diff.min.js"></script>
+  <script src="../assets/js/tool-registry.js"></script>
+  <script src="../assets/js/workflow-engine.js"></script>
+  <script src="../json/manifest.js"></script>
+  <script src="../diff/manifest.js"></script>
+  <script src="../http-request/manifest.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

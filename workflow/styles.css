@@ -1,0 +1,405 @@
+/* 工作流编排 — 画布样式 */
+
+/* ── 主布局 ── */
+.workflow-main {
+  display: grid;
+  grid-template-columns: 200px 1fr 240px;
+  gap: var(--spacing-md);
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 768px) {
+  .workflow-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .workflow-sidebar,
+  .workflow-props {
+    max-height: 200px;
+    overflow: auto;
+  }
+}
+
+/* ── 左侧工具箱 ── */
+.workflow-sidebar {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  overflow: auto;
+}
+
+.workflow-sidebar-title {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+
+.workflow-tool-list {
+  padding: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.workflow-tool-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.workflow-tool-item:hover {
+  background: var(--color-bg-secondary);
+}
+
+.workflow-tool-icon {
+  font-size: var(--font-size-lg);
+}
+
+.workflow-tool-name {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+/* ── 画布区域 ── */
+.workflow-canvas-wrapper {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.workflow-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.workflow-canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle, var(--color-border) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.workflow-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── SVG 连线层 ── */
+.workflow-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.workflow-edge {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.workflow-edge:hover {
+  stroke-width: 3;
+}
+
+.workflow-edge.is-selected {
+  stroke: var(--color-danger);
+  stroke-width: 3;
+}
+
+.workflow-edge-drawing {
+  stroke-dasharray: 5 5;
+  stroke: var(--color-warning);
+}
+
+/* ── 节点层 ── */
+.workflow-nodes {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.workflow-node {
+  position: absolute;
+  width: 160px;
+  min-height: 80px;
+  background: var(--color-bg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+  user-select: none;
+  z-index: 3;
+}
+
+.workflow-node:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.workflow-node.is-selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.workflow-node-body {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  padding-left: 24px; /* 给输入端口留空间 */
+  padding-right: 24px; /* 给输出端口留空间 */
+}
+
+.workflow-node-icon {
+  font-size: var(--font-size-lg);
+}
+
+.workflow-node-name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.workflow-node-status {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  width: 1.25rem;
+  height: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+}
+
+.workflow-node-status.is-success {
+  color: var(--color-success);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.workflow-node-status.is-error {
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ── 端口 ── */
+.workflow-port {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-bg);
+  border: 2px solid var(--color-primary);
+  cursor: crosshair;
+  z-index: 4;
+}
+
+.workflow-port:hover {
+  background: var(--color-primary);
+  transform: scale(1.2);
+}
+
+.workflow-port-in {
+  left: -6px;
+}
+
+.workflow-port-out {
+  right: -6px;
+}
+
+/* ── 右侧属性面板 ── */
+.workflow-props {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  overflow: auto;
+}
+
+.workflow-props-placeholder {
+  padding: var(--spacing-lg);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.workflow-props-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+
+.workflow-props-icon {
+  font-size: var(--font-size-lg);
+}
+
+.workflow-props-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.workflow-props-section {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--spacing-sm);
+}
+
+.workflow-prop-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.workflow-prop-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.workflow-prop-input {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.workflow-prop-input:focus {
+  border-color: var(--color-primary);
+}
+
+.workflow-prop-textarea {
+  resize: vertical;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+}
+
+/* ── 执行结果 ── */
+.workflow-result-code {
+  margin: 0;
+  padding: var(--spacing-sm);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  max-height: 200px;
+  overflow: auto;
+}
+
+.workflow-result-error {
+  padding: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-sm);
+  word-break: break-all;
+}
+
+.workflow-prop-port {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+}
+
+.workflow-prop-port.is-connected {
+  color: var(--color-success);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+/* ── 底部日志面板 ── */
+.workflow-logs {
+  margin-top: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.workflow-logs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.workflow-logs-body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--spacing-sm);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.8;
+}
+
+.workflow-log-item {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+}
+
+.workflow-log-item.is-info {
+  color: var(--color-text-secondary);
+}
+
+.workflow-log-item.is-success {
+  color: var(--color-success);
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.workflow-log-item.is-error {
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.05);
+}

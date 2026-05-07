@@ -132,12 +132,12 @@
   /**
    * 处理按钮点击
    */
-  function handleButtonClick(e) {
+  async function handleButtonClick(e) {
     const action = e.currentTarget.dataset.action;
     const handler = ACTIONS[action];
 
     if (handler) {
-      handler();
+      await handler();
     }
   }
 
@@ -364,100 +364,7 @@
     storage.set(STORAGE_KEY, newHistory);
   }
 
-  function doSortKeys() {
-    if (!state.isValid) {
-      showToast('请输入有效的 JSON', 'error');
-      return;
-    }
-
-    function sortObject(obj) {
-      if (obj === null || typeof obj !== 'object') {
-        return obj;
-      }
-
-      if (Array.isArray(obj)) {
-        return obj.map(sortObject);
-      }
-
-      const sorted = {};
-      Object.keys(obj)
-        .sort()
-        .forEach(key => {
-          sorted[key] = sortObject(obj[key]);
-        });
-      return sorted;
-    }
-
-    const sorted = sortObject(state.inputJson);
-    displayOutput(sorted);
-    state.inputJson = sorted;
-    showToast('键名排序完成', 'success');
-  }
-
-  function doToXml() {
-    if (!state.isValid) {
-      showToast('请输入有效的 JSON', 'error');
-      return;
-    }
-
-    try {
-      const xml = jsonToXml(state.inputJson, 'root');
-      elements.outputEditor.textContent = xml;
-      state.formattedOutput = xml;
-      updateOutputInfo(xml);
-      showToast('转换为 XML 成功', 'success');
-    } catch (err) {
-      showToast('转换失败: ' + err.message, 'error');
-    }
-  }
-
-  function doToYaml() {
-    if (!state.isValid) {
-      showToast('请输入有效的 JSON', 'error');
-      return;
-    }
-
-    if (typeof jsyaml === 'undefined' || typeof jsyaml.dump !== 'function') {
-      showToast('YAML 转换库未加载（js-yaml）', 'error');
-      return;
-    }
-
-    try {
-      const yaml = jsyaml.dump(state.inputJson, {
-        noRefs: true,
-        lineWidth: 120,
-        sortKeys: false
-      });
-      elements.outputEditor.textContent = yaml;
-      state.formattedOutput = yaml;
-      updateOutputInfo(yaml);
-      showToast('转换为 YAML 成功', 'success');
-    } catch (err) {
-      showToast('转换失败: ' + err.message, 'error');
-    }
-  }
-
-  function doToCsv() {
-    if (!state.isValid) {
-      showToast('请输入有效的 JSON', 'error');
-      return;
-    }
-
-    if (!Array.isArray(state.inputJson) || state.inputJson.length === 0) {
-      showToast('JSON 必须是数组才能转换为 CSV', 'error');
-      return;
-    }
-
-    try {
-      const csv = jsonToCsv(state.inputJson);
-      elements.outputEditor.textContent = csv;
-      state.formattedOutput = csv;
-      updateOutputInfo(csv);
-      showToast('转换为 CSV 成功', 'success');
-    } catch (err) {
-      showToast('转换失败: ' + err.message, 'error');
-    }
-  }
+  // Core 逻辑已抽离到 core.js，此处保留 UI 层调用
 
   /**
    * 处理文件选择
@@ -492,35 +399,47 @@
     reader.readAsText(file);
   }
 
+  // ── 通过 Core 执行 ──
+  async function runCore(action, extraParams = {}) {
+    if (!state.isValid) {
+      showToast('请输入有效的 JSON', 'error');
+      return;
+    }
+    const indent = elements.indentSelect.value;
+    const result = await window.TOOL_JSON_CORE.run({
+      input: { text: elements.inputEditor.value },
+      params: { action, indent, ...extraParams }
+    });
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+    if (action === 'validate') {
+      showToast(result.output.text, 'success');
+    } else if (action === 'compress') {
+      elements.outputEditor.textContent = result.output.text;
+      state.formattedOutput = result.output.text;
+      updateOutputInfo(result.output.text);
+      showToast('压缩成功', 'success');
+      saveHistory();
+    } else {
+      displayOutput(result.output.parsed);
+      state.formattedOutput = result.output.text;
+      showToast('处理成功', 'success');
+      saveHistory();
+    }
+  }
+
   // 动作处理器
   const ACTIONS = {
     // 格式化
-    format() {
-      if (!state.isValid) {
-        showToast('请输入有效的 JSON', 'error');
-        return;
-      }
-      displayOutput(state.inputJson);
-      showToast('格式化成功', 'success');
-      saveHistory();
-    },
+    async format() { await runCore('format'); },
 
     // 压缩
-    minify() {
-      if (!state.isValid) {
-        showToast('请输入有效的 JSON', 'error');
-        return;
-      }
-      const minified = JSON.stringify(state.inputJson);
-      elements.outputEditor.textContent = minified;
-      state.formattedOutput = minified;
-      updateOutputInfo(minified);
-      showToast('压缩成功', 'success');
-      saveHistory();
-    },
+    async minify() { await runCore('compress'); },
 
     // 验证
-    validate() {
+    async validate() {
       if (state.isValid) {
         showToast('JSON 格式正确', 'success');
       } else {
@@ -529,20 +448,20 @@
     },
 
     // 排序键名
-    sortKeys() { doSortKeys(); },
-    'sort-keys'() { doSortKeys(); },
+    async sortKeys() { await runCore('sortKeys'); },
+    async 'sort-keys'() { await runCore('sortKeys'); },
 
     // 转 XML
-    toXml() { doToXml(); },
-    'to-xml'() { doToXml(); },
+    async toXml() { await runCore('toXml'); },
+    async 'to-xml'() { await runCore('toXml'); },
 
     // 转 YAML
-    toYaml() { doToYaml(); },
-    'to-yaml'() { doToYaml(); },
+    async toYaml() { await runCore('toYaml'); },
+    async 'to-yaml'() { await runCore('toYaml'); },
 
     // 转 CSV
-    toCsv() { doToCsv(); },
-    'to-csv'() { doToCsv(); },
+    async toCsv() { await runCore('toCsv'); },
+    async 'to-csv'() { await runCore('toCsv'); },
 
     // 复制结果
     copy() {
@@ -596,94 +515,6 @@
       elements.fileInput.click();
     }
   };
-
-  /**
-   * JSON 转 XML
-   */
-  function jsonToXml(obj, rootName = 'root') {
-    let xml = '';
-
-    function toXml(value, tagName) {
-      if (value === null) {
-        return `<${tagName} null="true"/>`;
-      }
-
-      const type = typeof value;
-
-      if (type === 'object') {
-        if (Array.isArray(value)) {
-          return value.map((item, index) => toXml(item, tagName + '_' + index)).join('');
-        } else {
-          let str = `<${tagName}>`;
-          for (const key in value) {
-            str += toXml(value[key], key);
-          }
-          str += `</${tagName}>`;
-          return str;
-        }
-      }
-
-      return `<${tagName}>${escapeXml(value)}</${tagName}>`;
-    }
-
-    xml = toXml(obj, rootName);
-    return '<?xml version="1.0" encoding="UTF-8"?>\n' + xml;
-  }
-
-  /**
-   * 转义 XML
-   */
-  function escapeXml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
-
-  /**
-   * JSON 转 CSV
-   */
-  function jsonToCsv(data) {
-    if (!Array.isArray(data) || data.length === 0) {
-      return '';
-    }
-
-    // 获取所有键
-    const keys = Object.keys(data[0]);
-
-    // 添加表头
-    let csv = keys.join(',') + '\n';
-
-    // 添加数据行
-    for (const row of data) {
-      const values = keys.map(key => {
-        const value = row[key];
-        if (value === null || value === undefined) {
-          return '';
-        }
-        // 转义逗号和引号
-        const str = String(value);
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      });
-      csv += values.join(',') + '\n';
-    }
-
-    return csv;
-  }
-
-  /**
-   * 显示 js-yaml 警告
-   */
-  // 兼容旧逻辑：之前会提示“需要手动添加 js-yaml”
-  // 现在已默认引入 js-yaml，因此不再需要该提示；保留空实现避免外部引用报错。
-  function showJsYamlWarning() {
-    return true;
-  }
 
   // 启动应用
   init();

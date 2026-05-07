@@ -24,7 +24,8 @@
     'regex': './regex/index.html',
     'diff': './diff/index.html',
     'json-to-struct': './json-to-struct/index.html',
-    'http-request': './http-request/index.html'
+    'http-request': './http-request/index.html',
+    'workflow': './workflow/index.html'
   };
 
   const elements = {
