@@ -1,5 +1,5 @@
 /**
- * HTTP 请求工具 - 核心逻辑
+ * HTTP 请求工具 - UI 层
  */
 
 (function() {
@@ -47,7 +47,7 @@
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
       const handler = ACTIONS[btn.dataset.action];
-      if (handler) handler();
+      if (handler) handler(e);
     });
 
     // Headers / Form 输入变化也更新代码
@@ -74,70 +74,64 @@
 
   // ── 发送请求 ──
   async function doSend() {
+    if (!window.TOOL_HTTP_REQUEST_CORE) {
+      showToast('HTTP 核心模块未加载', 'error');
+      return;
+    }
+
     const url = el.url.value.trim();
     if (!url) { showToast('请输入 URL', 'warning'); return; }
 
     const method = el.method.value;
     const headers = collectHeaders();
     let body = null;
+    let bodyType = el.bodyType.value;
 
-    if (el.bodyType.value === 'raw') {
+    if (bodyType === 'raw') {
       body = el.bodyRaw.value;
-      if (body && !headers['Content-Type']) {
-        headers['Content-Type'] = 'application/json';
-      }
-    } else if (el.bodyType.value === 'form') {
-      const form = collectForm();
-      body = new URLSearchParams(form).toString();
-      headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    } else if (bodyType === 'form') {
+      body = collectForm();
     }
 
     el.status.textContent = '发送中…';
     el.status.style.color = 'var(--color-info)';
 
-    const start = performance.now();
-    try {
-      const opts = { method, headers };
-      if (body !== null) opts.body = body;
+    const result = await window.TOOL_HTTP_REQUEST_CORE.run({
+      input: {},
+      params: { method, url, bodyType, body, headers, timeout: 30000 }
+    });
 
-      const res = await fetch(url, opts);
-      const duration = Math.round(performance.now() - start);
-      renderResponse(res, duration);
-      el.status.textContent = `${res.status} ${res.statusText} · ${duration}ms`;
-      el.status.style.color = res.ok ? 'var(--color-success)' : 'var(--color-danger)';
-    } catch (err) {
-      const duration = Math.round(performance.now() - start);
-      renderError(err, duration);
+    if (result.error) {
+      renderError(result.error, result.output?.duration || 0);
       el.status.textContent = '请求失败';
       el.status.style.color = 'var(--color-danger)';
+      return;
     }
+
+    const data = result.output;
+    renderResponse(data);
+    el.status.textContent = `${data.status} ${data.statusText} · ${data.duration}ms`;
+    el.status.style.color = data.ok ? 'var(--color-success)' : 'var(--color-danger)';
   }
 
-  async function renderResponse(res, duration) {
-    let bodyText = '';
-    try {
-      bodyText = await res.text();
-    } catch {
-      bodyText = '(无法读取响应体)';
-    }
-
+  function renderResponse(data) {
     // 尝试格式化 JSON
-    let bodyHtml = escapeHtml(bodyText);
+    let bodyHtml = escapeHtml(data.body);
     try {
-      const json = JSON.parse(bodyText);
+      const json = JSON.parse(data.body);
       bodyHtml = escapeHtml(JSON.stringify(json, null, 2));
     } catch {
       // 不是 JSON，保持原样
     }
 
     let headerHtml = '';
-    res.headers.forEach((val, key) => {
+    for (const [key, val] of Object.entries(data.headers)) {
       headerHtml += `<div class="http-resp-header"><span class="http-resp-hkey">${escapeHtml(key)}:</span> <span class="http-resp-hval">${escapeHtml(val)}</span></div>`;
-    });
+    }
 
     let html = `<div class="http-resp-meta">
-      <span class="http-resp-status ${res.ok ? 'is-ok' : 'is-err'}">${res.status} ${escapeHtml(res.statusText)}</span>
-      <span class="http-resp-time">${duration}ms</span>
+      <span class="http-resp-status ${data.ok ? 'is-ok' : 'is-err'}">${data.status} ${escapeHtml(data.statusText)}</span>
+      <span class="http-resp-time">${data.duration}ms</span>
     </div>`;
 
     html += `<div class="http-resp-section-title">响应头</div>`;
@@ -149,11 +143,9 @@
     el.response.innerHTML = html;
   }
 
-  function renderError(err, duration) {
-    let msg = escapeHtml(err.message);
+  function renderError(errMessage, duration) {
     let tip = '';
-
-    if (err.name === 'TypeError' && /fetch|Failed to fetch|NetworkError|CORS/i.test(msg)) {
+    if (/CORS|fetch|Failed to fetch|NetworkError/i.test(errMessage)) {
       tip = `<div class="http-cors-tip">
         <strong>请求被浏览器安全策略阻止（CORS）</strong><br>
         目标服务器未配置跨域响应头，浏览器禁止前端 JavaScript 直接访问。<br>
@@ -165,7 +157,7 @@
       <span class="http-resp-status is-err">请求失败</span>
       <span class="http-resp-time">${duration}ms</span>
     </div>`;
-    html += `<div class="http-resp-error">${msg}</div>`;
+    html += `<div class="http-resp-error">${escapeHtml(errMessage)}</div>`;
     if (tip) html += tip;
     el.response.innerHTML = html;
   }

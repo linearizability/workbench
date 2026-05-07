@@ -1,5 +1,5 @@
 /**
- * 文本对比 - 核心逻辑
+ * 文本对比 - UI 层
  */
 
 (function() {
@@ -59,30 +59,27 @@ greet('World', 'en');`;
   }
 
   // ── 比较 ──
-  function doCompare() {
-    const oldStr = el.oldText.value;
-    const newStr = el.newText.value;
-
-    if (!oldStr && !newStr) {
-      resetResult();
+  async function doCompare() {
+    if (!window.TOOL_DIFF_CORE) {
+      showToast('Diff 核心模块未加载', 'error');
       return;
     }
 
-    const diff = window.Diff;
-    let changes;
+    const result = await window.TOOL_DIFF_CORE.run({
+      input: { oldText: el.oldText.value, newText: el.newText.value },
+      params: { mode }
+    });
 
-    if (mode === 'lines') {
-      changes = diff.diffLines(oldStr, newStr);
-    } else if (mode === 'words') {
-      changes = diff.diffWords(oldStr, newStr);
-    } else {
-      changes = diff.diffChars(oldStr, newStr);
+    if (result.error) {
+      el.info.textContent = '对比失败';
+      el.result.innerHTML = `<div class="placeholder" style="color: var(--color-danger);">${escapeHtml(result.error)}</div>`;
+      return;
     }
 
     if (mode === 'lines') {
-      renderLineDiff(changes);
+      renderLineDiff(result.output.changes);
     } else {
-      renderInlineDiff(changes);
+      renderInlineDiff(result.output.changes);
     }
   }
 
