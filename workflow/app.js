@@ -376,7 +376,14 @@
   const PORT_SPACING = 22;   // 端口间距（稍微拉开一点）
   const PORT_RADIUS = 5;    // 端口圆半径
 
-  function getPortY(portIndex) {
+  function getPortY(portIndex, nodeId) {
+    const div = nodeId ? document.getElementById(nodeId) : null;
+    if (div) {
+      const isExpanded = div.classList.contains('is-selected') || div.classList.contains('is-connecting');
+      if (!isExpanded) {
+        return NODE_HEADER_H / 2;
+      }
+    }
     return NODE_HEADER_H + PORT_START_Y + portIndex * PORT_SPACING + PORT_RADIUS;
   }
 
@@ -468,6 +475,7 @@
   function selectNode(id) {
     state.selectedNode = id;
     document.querySelectorAll('.workflow-node').forEach(n => n.classList.toggle('is-selected', n.id === id));
+    renderEdges();
     renderProps();
   }
 
@@ -478,6 +486,7 @@
       state.selectedEdge = null;
       document.querySelectorAll('.workflow-node').forEach(n => n.classList.remove('is-selected'));
       el.svg.querySelectorAll('.workflow-edge').forEach(p => p.classList.remove('is-selected'));
+      renderEdges();
       renderProps();
     }
   }
@@ -530,7 +539,7 @@
     const fromOutputIndex = (fromManifest?.outputs || []).findIndex(o => o.name === state.drawingEdge.fromOutput);
 
     const fromX = fromNode.x + NODE_WIDTH + PORT_RADIUS; // 节点右边界 + 端口半径
-    const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0);
+    const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0, fromNode.id);
     const toX = e.clientX - el.canvas.getBoundingClientRect().left;
     const toY = e.clientY - el.canvas.getBoundingClientRect().top;
     const d = `M ${fromX} ${fromY} C ${fromX + 80} ${fromY}, ${toX - 80} ${toY}, ${toX} ${toY}`;
@@ -580,9 +589,9 @@
       const toInputIndex = (toManifest?.inputs || []).findIndex(i => i.name === edge.toInput);
 
       const fromX = fromNode.x + NODE_WIDTH + PORT_RADIUS;
-      const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0);
+      const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0, fromNode.id);
       const toX = toNode.x - PORT_RADIUS;
-      const toY = toNode.y + getPortY(toInputIndex >= 0 ? toInputIndex : 0);
+      const toY = toNode.y + getPortY(toInputIndex >= 0 ? toInputIndex : 0, toNode.id);
 
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       let edgeClass = 'workflow-edge';
