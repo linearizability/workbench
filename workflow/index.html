@@ -32,8 +32,13 @@
             <button class="btn btn-secondary" data-action="clear">清空画布</button>
           </div>
           <div class="toolbar-group">
-            <button class="btn btn-sm btn-secondary" data-action="save">保存</button>
-            <button class="btn btn-sm btn-secondary" data-action="load">导入</button>
+            <select class="workflow-saved-select" id="workflow-saved-select">
+              <option value="">已保存的工作流…</option>
+            </select>
+            <button class="btn btn-sm btn-secondary" data-action="save-local">存到本地</button>
+            <button class="btn btn-sm btn-secondary" data-action="delete-local">删除</button>
+            <button class="btn btn-sm btn-secondary" data-action="save">导出文件</button>
+            <button class="btn btn-sm btn-secondary" data-action="load">导入文件</button>
           </div>
         </div>
 

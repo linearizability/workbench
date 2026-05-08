@@ -23,6 +23,8 @@
     await loadToolManifests();
     renderToolList();
     bindEvents();
+    updateSavedList();
+    tryAutoLoad();
   }
 
   function cacheElements() {
@@ -33,6 +35,7 @@
     el.props = document.getElementById('workflow-props');
     el.logsBody = document.getElementById('workflow-logs-body');
     el.resultsBody = document.getElementById('workflow-results-body');
+    el.savedSelect = document.getElementById('workflow-saved-select');
   }
 
   // ── 加载工具清单 ──
@@ -56,6 +59,121 @@
       s.onerror = reject;
       document.head.appendChild(s);
     });
+  }
+
+  // ── 本地存储：已保存工作流 ──
+  const SAVED_WORKFLOWS_KEY = 'workflow_saved_list';
+  const AUTO_SAVE_KEY = 'workflow_auto_save';
+
+  function getSavedWorkflows() {
+    try {
+      return storage.get(SAVED_WORKFLOWS_KEY, {});
+    } catch {
+      return {};
+    }
+  }
+
+  function saveWorkflowLocal(name) {
+    if (!name) return;
+    const data = {
+      nodes: state.nodes.map(n => ({
+        id: n.id,
+        tool: n.tool,
+        name: n.name,
+        icon: n.icon,
+        x: n.x,
+        y: n.y,
+        params: n.params,
+        initialInputs: n.initialInputs
+      })),
+      edges: state.edges
+    };
+    const saved = getSavedWorkflows();
+    saved[name] = { data, savedAt: Date.now() };
+    storage.set(SAVED_WORKFLOWS_KEY, saved);
+    storage.set(AUTO_SAVE_KEY, name);
+    updateSavedList();
+    showToast(`已保存到本地: ${name}`, 'success');
+  }
+
+  function loadWorkflowLocal(name) {
+    const saved = getSavedWorkflows();
+    const entry = saved[name];
+    if (!entry || !entry.data) {
+      showToast('工作流不存在', 'error');
+      return;
+    }
+    applyWorkflowData(entry.data);
+    storage.set(AUTO_SAVE_KEY, name);
+    showToast(`已加载: ${name}`, 'success');
+  }
+
+  function deleteWorkflowLocal(name) {
+    const saved = getSavedWorkflows();
+    if (!saved[name]) {
+      showToast('工作流不存在', 'warning');
+      return;
+    }
+    delete saved[name];
+    storage.set(SAVED_WORKFLOWS_KEY, saved);
+    const lastAuto = storage.get(AUTO_SAVE_KEY, '');
+    if (lastAuto === name) storage.remove(AUTO_SAVE_KEY);
+    updateSavedList();
+    showToast(`已删除: ${name}`, 'success');
+  }
+
+  function updateSavedList() {
+    if (!el.savedSelect) return;
+    const saved = getSavedWorkflows();
+    const names = Object.keys(saved).sort();
+    let html = '<option value="">已保存的工作流…</option>';
+    names.forEach(name => {
+      html += `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
+    });
+    el.savedSelect.innerHTML = html;
+  }
+
+  function tryAutoLoad() {
+    const lastName = storage.get(AUTO_SAVE_KEY, '');
+    if (lastName) {
+      const saved = getSavedWorkflows();
+      if (saved[lastName]) {
+        loadWorkflowLocal(lastName);
+      }
+    }
+  }
+
+  function doSaveLocal() {
+    const name = prompt('请输入工作流名称（保存到本地浏览器）:', 'workflow-1');
+    if (!name || !name.trim()) return;
+    saveWorkflowLocal(name.trim());
+  }
+
+  function doDeleteLocal() {
+    if (!el.savedSelect) return;
+    const name = el.savedSelect.value;
+    if (!name) { showToast('请先从下拉列表选择一个工作流', 'warning'); return; }
+    if (!confirm(`确定删除本地工作流 "${name}" 吗？`)) return;
+    deleteWorkflowLocal(name);
+  }
+
+  function applyWorkflowData(data) {
+    if (data.nodes) state.nodes = data.nodes;
+    if (data.edges) state.edges = data.edges;
+    // 更新 nextId 避免 ID 冲突
+    const maxId = state.nodes.reduce((max, n) => {
+      const num = parseInt(n.id.replace(/^n/, ''), 10);
+      return isNaN(num) ? max : Math.max(max, num);
+    }, 0);
+    state.nextId = maxId + 1;
+    // 重新渲染
+    el.nodesLayer.innerHTML = '';
+    el.svg.innerHTML = '';
+    state.nodes.forEach(n => renderNode(n));
+    renderEdges();
+    renderProps();
+    doClearLogs();
+    doClearResults();
   }
 
   // ── 渲染左侧工具箱 ──
@@ -92,6 +210,14 @@
       const handler = ACTIONS[btn.dataset.action];
       if (handler) handler();
     });
+
+    // 已保存工作流下拉列表
+    if (el.savedSelect) {
+      el.savedSelect.addEventListener('change', () => {
+        const name = el.savedSelect.value;
+        if (name) loadWorkflowLocal(name);
+      });
+    }
 
     // 删除节点 / 连线
     window.addEventListener('keydown', (e) => {
@@ -802,20 +928,7 @@
       reader.onload = (ev) => {
         try {
           const data = JSON.parse(ev.target.result);
-          if (data.nodes) state.nodes = data.nodes;
-          if (data.edges) state.edges = data.edges;
-          // 更新 nextId 避免 ID 冲突
-          const maxId = state.nodes.reduce((max, n) => {
-            const num = parseInt(n.id.replace(/^n/, ''), 10);
-            return isNaN(num) ? max : Math.max(max, num);
-          }, 0);
-          state.nextId = maxId + 1;
-          // 重新渲染
-          el.nodesLayer.innerHTML = '';
-          el.svg.innerHTML = '';
-          state.nodes.forEach(n => renderNode(n));
-          renderEdges();
-          renderProps();
+          applyWorkflowData(data);
           showToast('工作流已导入', 'success');
         } catch (err) {
           showToast('导入失败: ' + err.message, 'error');
@@ -837,6 +950,8 @@
     clear: doClear,
     save: doSave,
     load: doLoad,
+    'save-local': doSaveLocal,
+    'delete-local': doDeleteLocal,
     'clear-logs': doClearLogs,
     'clear-results': doClearResults,
     'delete-node': doDeleteNode
