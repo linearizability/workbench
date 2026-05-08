@@ -32,6 +32,7 @@
     el.nodesLayer = document.getElementById('workflow-nodes');
     el.props = document.getElementById('workflow-props');
     el.logsBody = document.getElementById('workflow-logs-body');
+    el.resultsBody = document.getElementById('workflow-results-body');
   }
 
   // ── 加载工具清单 ──
@@ -95,6 +96,15 @@
     // 删除节点 / 连线
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        // 若焦点在输入控件内，不触发节点删除
+        const active = document.activeElement;
+        if (active) {
+          const tag = active.tagName;
+          const isEditable = active.isContentEditable;
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || isEditable) {
+            return;
+          }
+        }
         if (state.selectedNode) {
           removeNode(state.selectedNode);
         } else if (state.selectedEdge !== null) {
@@ -153,10 +163,15 @@
            style="top:${16 + i * 24}px"></div>
     `).join('');
 
+    // 根据端口数量动态计算节点高度，避免端口溢出
+    const maxPorts = Math.max(inputs.length, outputs.length);
+    const nodeHeight = Math.max(80, 16 + (maxPorts - 1) * 24 + 28);
+
     const div = document.createElement('div');
     div.className = 'workflow-node';
     div.id = node.id;
     div.style.transform = `translate(${node.x}px, ${node.y}px)`;
+    div.style.height = `${nodeHeight}px`;
     div.innerHTML = `
       ${inputPorts}
       <div class="workflow-node-body">
@@ -570,6 +585,7 @@
       });
       updateNodeStatusBadges();
       renderProps();
+      renderFinalResults(engine);
       showToast('工作流执行完成', 'success');
     } catch (err) {
       // 已经执行过的节点也保存结果
@@ -582,8 +598,144 @@
       });
       updateNodeStatusBadges();
       renderProps();
+      renderFinalResults(engine);
       appendLog(`执行中断: ${err.message}`, 'error');
       showToast(err.message, 'error');
+    }
+  }
+
+  // ── 结果面板渲染 ──
+  function renderFinalResults(engine) {
+    if (!el.resultsBody) return;
+
+    // 找出最终节点：没有出边的节点
+    const finalNodeIds = new Set(state.nodes.map(n => n.id));
+    state.edges.forEach(e => finalNodeIds.delete(e.from));
+
+    if (finalNodeIds.size === 0) {
+      el.resultsBody.innerHTML = '<div class="workflow-results-placeholder">工作流没有最终输出节点</div>';
+      return;
+    }
+
+    let html = '';
+    finalNodeIds.forEach(id => {
+      const node = state.nodes.find(n => n.id === id);
+      if (!node) return;
+      const log = engine.logs.find(l => l.nodeId === id);
+      html += renderResultItem(node, node.__lastResult, node.__lastError, log);
+    });
+
+    el.resultsBody.innerHTML = html;
+  }
+
+  function renderResultItem(node, result, error, log) {
+    const manifest = TOOL_MANIFESTS.find(t => t.id === node.tool);
+    const toolName = manifest?.name || node.tool;
+    const statusClass = error ? 'is-error' : 'is-success';
+    const statusText = error ? '失败' : (log ? `成功 · ${log.duration}ms` : '成功');
+
+    let bodyHtml = '';
+    if (error) {
+      bodyHtml = `<div class="workflow-result-error">${escapeHtml(error)}</div>`;
+    } else if (result) {
+      if (node.tool === 'diff' && result.changes) {
+        bodyHtml = renderDiffResult(result);
+      } else if (node.tool === 'http-request') {
+        bodyHtml = renderHttpResult(result);
+      } else if (typeof result === 'object') {
+        if (typeof result.text === 'string') {
+          bodyHtml = `<pre class="workflow-result-code"><code>${escapeHtml(result.text)}</code></pre>`;
+        } else {
+          bodyHtml = `<pre class="workflow-result-code"><code>${escapeHtml(JSON.stringify(result, null, 2))}</code></pre>`;
+        }
+      } else {
+        bodyHtml = `<pre class="workflow-result-code"><code>${escapeHtml(String(result))}</code></pre>`;
+      }
+    } else {
+      bodyHtml = '<div class="workflow-results-placeholder">无输出</div>';
+    }
+
+    return `
+      <div class="workflow-result-item">
+        <div class="workflow-result-item-header">
+          <span class="workflow-result-item-icon">${node.icon}</span>
+          <span class="workflow-result-item-name">${escapeHtml(toolName)} (${node.id})</span>
+          <span class="workflow-result-item-status ${statusClass}">${statusText}</span>
+        </div>
+        <div class="workflow-result-item-body">${bodyHtml}</div>
+      </div>
+    `;
+  }
+
+  function renderDiffResult(result) {
+    const changes = result.changes;
+    const stats = result.stats;
+    if (!changes || !changes.length) {
+      return '<div class="workflow-results-placeholder">无差异</div>';
+    }
+
+    let html = '<div class="diff-line-list">';
+    let oldNum = 1;
+    let newNum = 1;
+
+    changes.forEach(part => {
+      const lines = part.value.split('\n');
+      if (lines[lines.length - 1] === '') lines.pop();
+
+      lines.forEach(line => {
+        const cls = part.added ? 'diff-added' : part.removed ? 'diff-removed' : 'diff-normal';
+        const oNum = part.added ? '' : String(oldNum++);
+        const nNum = part.removed ? '' : String(newNum++);
+        const marker = part.added ? '+' : part.removed ? '-' : ' ';
+
+        html += `<div class="diff-line ${cls}">
+          <span class="diff-line-num">${oNum.padStart(4, ' ')}</span>
+          <span class="diff-line-num">${nNum.padStart(4, ' ')}</span>
+          <span class="diff-line-marker">${marker}</span>
+          <span class="diff-line-text">${escapeHtml(line)}</span>
+        </div>`;
+      });
+    });
+
+    html += '</div>';
+
+    if (stats) {
+      const parts = [];
+      if (stats.mode) parts.push(`模式: ${stats.mode}`);
+      if (typeof stats.added === 'number') parts.push(`新增 ${stats.added} 行`);
+      if (typeof stats.removed === 'number') parts.push(`删除 ${stats.removed} 行`);
+      if (parts.length) {
+        html = `<div class="workflow-result-stats">${parts.join(' · ')}</div>` + html;
+      }
+    }
+
+    return html;
+  }
+
+  function renderHttpResult(result) {
+    const statusClass = result.ok ? 'is-success' : (result.status >= 400 ? 'is-error' : 'is-warning');
+    let html = `<div class="workflow-result-stats">
+      <span class="${statusClass}">${result.status} ${escapeHtml(result.statusText)}</span>
+      <span>耗时 ${result.duration}ms</span>
+    </div>`;
+
+    if (result.body) {
+      let body = result.body;
+      try {
+        const json = JSON.parse(body);
+        body = JSON.stringify(json, null, 2);
+      } catch {
+        // 保持原样
+      }
+      html += `<pre class="workflow-result-code"><code>${escapeHtml(body)}</code></pre>`;
+    }
+
+    return html;
+  }
+
+  function doClearResults() {
+    if (el.resultsBody) {
+      el.resultsBody.innerHTML = '<div class="workflow-results-placeholder">运行工作流后，最终节点结果将显示在这里</div>';
     }
   }
 
@@ -605,6 +757,7 @@
     el.svg.innerHTML = '';
     renderProps();
     el.logsBody.innerHTML = '';
+    doClearResults();
     showToast('画布已清空', 'success');
   }
 
@@ -613,8 +766,19 @@
   }
 
   function doSave() {
+    // 排除执行时产生的临时状态（__lastResult / __lastError）
+    const cleanNodes = state.nodes.map(n => ({
+      id: n.id,
+      tool: n.tool,
+      name: n.name,
+      icon: n.icon,
+      x: n.x,
+      y: n.y,
+      params: n.params,
+      initialInputs: n.initialInputs
+    }));
     const data = {
-      nodes: state.nodes,
+      nodes: cleanNodes,
       edges: state.edges
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -674,6 +838,7 @@
     save: doSave,
     load: doLoad,
     'clear-logs': doClearLogs,
+    'clear-results': doClearResults,
     'delete-node': doDeleteNode
   };
 

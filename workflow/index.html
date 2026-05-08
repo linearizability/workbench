@@ -50,13 +50,24 @@
       </aside>
     </main>
 
-    <!-- 底部日志面板 -->
-    <div class="workflow-logs" id="workflow-logs">
-      <div class="workflow-logs-header">
-        <span>执行日志</span>
-        <button class="btn btn-sm btn-secondary" data-action="clear-logs">清空</button>
+    <!-- 底部面板：日志 + 结果 -->
+    <div class="workflow-bottom" id="workflow-bottom">
+      <div class="workflow-logs" id="workflow-logs">
+        <div class="workflow-logs-header">
+          <span>执行日志</span>
+          <button class="btn btn-sm btn-secondary" data-action="clear-logs">清空</button>
+        </div>
+        <div class="workflow-logs-body" id="workflow-logs-body"></div>
       </div>
-      <div class="workflow-logs-body" id="workflow-logs-body"></div>
+      <div class="workflow-results" id="workflow-results">
+        <div class="workflow-results-header">
+          <span>执行结果</span>
+          <button class="btn btn-sm btn-secondary" data-action="clear-results">清空</button>
+        </div>
+        <div class="workflow-results-body" id="workflow-results-body">
+          <div class="workflow-results-placeholder">运行工作流后，最终节点结果将显示在这里</div>
+        </div>
+      </div>
     </div>
   </div>
 
