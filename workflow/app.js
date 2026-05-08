@@ -342,8 +342,8 @@
 
     const id = 'n' + state.nextId++;
     const rect = el.canvas.getBoundingClientRect();
-    const x = rect.width / 2 - 80 + (Math.random() * 40 - 20);
-    const y = rect.height / 2 - 60 + (Math.random() * 40 - 20);
+    const x = rect.width / 2 - 90 + (Math.random() * 40 - 20);
+    const y = rect.height / 2 - 20 + (Math.random() * 40 - 20);
 
     const node = {
       id,
@@ -369,6 +369,21 @@
     return params;
   }
 
+  // 节点常量
+  const NODE_WIDTH = 180;
+  const NODE_HEADER_H = 40;
+  const PORT_START_Y = 14;   // 端口区内起始偏移（上下各留 14px padding）
+  const PORT_SPACING = 22;   // 端口间距（稍微拉开一点）
+  const PORT_RADIUS = 5;    // 端口圆半径
+
+  function getPortY(portIndex) {
+    return NODE_HEADER_H + PORT_START_Y + portIndex * PORT_SPACING + PORT_RADIUS;
+  }
+
+  function getNodeExpandedHeight(maxPorts) {
+    return NODE_HEADER_H + maxPorts * PORT_SPACING + PORT_START_Y * 2;
+  }
+
   function renderNode(node) {
     const manifest = TOOL_MANIFESTS.find(t => t.id === node.tool);
     const inputs = manifest?.inputs || [];
@@ -376,31 +391,36 @@
 
     const inputPorts = inputs.map((p, i) => `
       <div class="workflow-port workflow-port-in" data-port="${p.name}" title="${p.label}"
-           style="top:${16 + i * 24}px"></div>
+           style="top:${PORT_START_Y + i * PORT_SPACING}px">
+        <span class="workflow-port-label">${p.label}</span>
+      </div>
     `).join('');
 
     const outputPorts = outputs.map((p, i) => `
       <div class="workflow-port workflow-port-out" data-port="${p.name}" title="${p.label}"
-           style="top:${16 + i * 24}px"></div>
+           style="top:${PORT_START_Y + i * PORT_SPACING}px">
+        <span class="workflow-port-label">${p.label}</span>
+      </div>
     `).join('');
 
-    // 根据端口数量动态计算节点高度，避免端口溢出
     const maxPorts = Math.max(inputs.length, outputs.length);
-    const nodeHeight = Math.max(80, 16 + (maxPorts - 1) * 24 + 28);
+    const portsHeight = maxPorts * PORT_SPACING + PORT_START_Y * 2;
 
     const div = document.createElement('div');
     div.className = 'workflow-node';
     div.id = node.id;
     div.style.transform = `translate(${node.x}px, ${node.y}px)`;
-    div.style.height = `${nodeHeight}px`;
+    div.dataset.maxPorts = maxPorts;
     div.innerHTML = `
-      ${inputPorts}
-      <div class="workflow-node-body">
+      <div class="workflow-node-header">
         <span class="workflow-node-icon">${node.icon}</span>
         <span class="workflow-node-name">${node.name}</span>
         <span class="workflow-node-status"></span>
       </div>
-      ${outputPorts}
+      <div class="workflow-node-ports" style="height: ${portsHeight}px;">
+        ${inputPorts}
+        ${outputPorts}
+      </div>
     `;
 
     // 节点点击选中
@@ -497,6 +517,7 @@
     path.setAttribute('class', 'workflow-edge workflow-edge-drawing');
     el.svg.appendChild(path);
     state.drawingEdge = { fromId, fromOutput, path };
+    document.querySelectorAll('.workflow-node').forEach(n => n.classList.add('is-connecting'));
     updateDrawingEdge(e);
   }
 
@@ -508,8 +529,8 @@
     const fromManifest = TOOL_MANIFESTS.find(t => t.id === fromNode.tool);
     const fromOutputIndex = (fromManifest?.outputs || []).findIndex(o => o.name === state.drawingEdge.fromOutput);
 
-    const fromX = fromNode.x + 160 + 6; // 节点右边界 + 端口半径
-    const fromY = fromNode.y + 16 + (fromOutputIndex >= 0 ? fromOutputIndex : 0) * 24 + 6;
+    const fromX = fromNode.x + NODE_WIDTH + PORT_RADIUS; // 节点右边界 + 端口半径
+    const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0);
     const toX = e.clientX - el.canvas.getBoundingClientRect().left;
     const toY = e.clientY - el.canvas.getBoundingClientRect().top;
     const d = `M ${fromX} ${fromY} C ${fromX + 80} ${fromY}, ${toX - 80} ${toY}, ${toX} ${toY}`;
@@ -540,6 +561,7 @@
       state.drawingEdge.path.remove();
     }
     state.drawingEdge = null;
+    document.querySelectorAll('.workflow-node').forEach(n => n.classList.remove('is-connecting'));
   }
 
   function renderEdges() {
@@ -557,10 +579,10 @@
       const fromOutputIndex = (fromManifest?.outputs || []).findIndex(o => o.name === edge.fromOutput);
       const toInputIndex = (toManifest?.inputs || []).findIndex(i => i.name === edge.toInput);
 
-      const fromX = fromNode.x + 160 + 6; // 节点右边界 + 端口半径
-      const fromY = fromNode.y + 16 + (fromOutputIndex >= 0 ? fromOutputIndex : 0) * 24 + 6;
-      const toX = toNode.x - 6; // 节点左边界 - 端口半径
-      const toY = toNode.y + 16 + (toInputIndex >= 0 ? toInputIndex : 0) * 24 + 6;
+      const fromX = fromNode.x + NODE_WIDTH + PORT_RADIUS;
+      const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0);
+      const toX = toNode.x - PORT_RADIUS;
+      const toY = toNode.y + getPortY(toInputIndex >= 0 ? toInputIndex : 0);
 
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       let edgeClass = 'workflow-edge';
