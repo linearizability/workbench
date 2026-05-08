@@ -14,6 +14,7 @@
     nextId: 1,
     dragging: null,       // { id, offsetX, offsetY }
     drawingEdge: null,    // { fromId, fromOutput, svgPath }
+    autoRun: { enabled: false, timerId: null, nextRun: null }
   };
 
   const TOOL_MANIFESTS = []; // 已加载的工具元数据
@@ -36,6 +37,10 @@
     el.logsBody = document.getElementById('workflow-logs-body');
     el.resultsBody = document.getElementById('workflow-results-body');
     el.savedSelect = document.getElementById('workflow-saved-select');
+    el.autoRunToggle = document.getElementById('auto-run-toggle');
+    el.autoRunMode = document.getElementById('auto-run-mode');
+    el.autoRunExpr = document.getElementById('auto-run-expr');
+    el.autoRunCountdown = document.getElementById('auto-run-countdown');
   }
 
   // ── 加载工具清单 ──
@@ -44,10 +49,62 @@
     await loadScript('../json/manifest.js');
     await loadScript('../diff/manifest.js');
     await loadScript('../http-request/manifest.js');
+    // 阶段 3：加载 Base64、UUID、MD5、URL、JWT、Timestamp 工具
+    await loadScript('../base64/manifest.js');
+    await loadScript('../uuid/manifest.js');
+    await loadScript('../md5/manifest.js');
+    await loadScript('../url/manifest.js');
+    await loadScript('../jwt/manifest.js');
+    await loadScript('../timestamp/manifest.js');
+    // 阶段 3（续）：加载剩余工具
+    await loadScript('../cron/manifest.js');
+    await loadScript('../qrcode/manifest.js');
+    await loadScript('../regex/manifest.js');
+    await loadScript('../file-generator/manifest.js');
+    await loadScript('../image-generator/manifest.js');
+    await loadScript('../properties-yaml/manifest.js');
+    await loadScript('../svg-editor/manifest.js');
+    await loadScript('../json-to-struct/manifest.js');
+    await loadScript('../notepad/manifest.js');
+    await loadScript('../links/manifest.js');
 
-    ['json', 'diff', 'http-request'].forEach(id => {
+    const toolIds = ['json', 'diff', 'http-request', 'base64', 'uuid', 'md5', 'url', 'jwt', 'timestamp',
+      'cron', 'qrcode', 'regex', 'file-generator', 'image-generator', 'properties-yaml',
+      'svg-editor', 'json-to-struct', 'notepad', 'links'];
+    toolIds.forEach(id => {
       const tool = window.TOOL_REGISTRY.get(id);
       if (tool) TOOL_MANIFESTS.push(tool);
+    });
+
+    // 注册内置条件分支工具
+    TOOL_MANIFESTS.push({
+      id: '__condition',
+      name: '条件分支',
+      icon: '🔀',
+      description: '根据条件表达式决定输出 true 或 false 分支',
+      inputs: [{ name: 'data', label: '输入数据' }],
+      outputs: [
+        { name: 'true', label: '满足条件' },
+        { name: 'false', label: '不满足条件' }
+      ],
+      params: [
+        { name: 'expression', label: '条件表达式', default: 'input.data' }
+      ]
+    });
+
+    // 注册内置循环处理工具
+    TOOL_MANIFESTS.push({
+      id: '__foreach',
+      name: '循环处理',
+      icon: '🔄',
+      description: '对数组的每个元素执行表达式，返回结果数组',
+      inputs: [{ name: 'items', label: '数组数据' }],
+      outputs: [
+        { name: 'results', label: '结果数组' }
+      ],
+      params: [
+        { name: 'expression', label: '处理表达式', default: 'item' }
+      ]
     });
   }
 
@@ -218,6 +275,44 @@
         if (name) loadWorkflowLocal(name);
       });
     }
+
+    // 自动执行控件
+    if (el.autoRunToggle) {
+      el.autoRunToggle.addEventListener('change', () => {
+        if (el.autoRunToggle.checked) startAutoRun();
+        else stopAutoRun();
+      });
+    }
+    if (el.autoRunMode) {
+      el.autoRunMode.addEventListener('change', () => {
+        const mode = el.autoRunMode.value;
+        if (el.autoRunExpr) el.autoRunExpr.placeholder = mode === 'interval' ? '5' : '0 9 * * *';
+        if (state.autoRun.enabled) {
+          if (state.autoRun.timerId) clearTimeout(state.autoRun.timerId);
+          scheduleNext();
+        }
+      });
+    }
+    if (el.autoRunExpr) {
+      el.autoRunExpr.addEventListener('change', () => {
+        if (state.autoRun.enabled) {
+          if (state.autoRun.timerId) clearTimeout(state.autoRun.timerId);
+          scheduleNext();
+        }
+      });
+    }
+
+    // 页面卸载时清理定时器
+    window.addEventListener('beforeunload', () => {
+      if (state.autoRun.timerId) clearTimeout(state.autoRun.timerId);
+    });
+
+    // 每秒刷新倒计时显示
+    setInterval(() => {
+      if (state.autoRun.enabled && state.autoRun.nextRun) {
+        updateAutoRunUI();
+      }
+    }, 1000);
 
     // 删除节点 / 连线
     window.addEventListener('keydown', (e) => {
@@ -468,7 +563,11 @@
       const toY = toNode.y + 16 + (toInputIndex >= 0 ? toInputIndex : 0) * 24 + 6;
 
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('class', 'workflow-edge');
+      let edgeClass = 'workflow-edge';
+      if (fromNode.tool === '__condition') {
+        edgeClass += edge.fromOutput === 'true' ? ' workflow-edge-true' : ' workflow-edge-false';
+      }
+      path.setAttribute('class', edgeClass);
       path.setAttribute('data-edge-index', index);
       path.setAttribute('d', `M ${fromX} ${fromY} C ${fromX + 80} ${fromY}, ${toX - 80} ${toY}, ${toX} ${toY}`);
       path.addEventListener('click', (e) => {
@@ -520,8 +619,65 @@
     });
   }
 
+  // ── 边属性面板 ──
+  function renderEdgeProps() {
+    const edge = state.edges[state.selectedEdge];
+    if (!edge) {
+      el.props.innerHTML = '<div class="workflow-props-placeholder">选中连线以查看信息</div>';
+      return;
+    }
+    const fromNode = state.nodes.find(n => n.id === edge.from);
+    const toNode = state.nodes.find(n => n.id === edge.to);
+
+    let html = `
+      <div class="workflow-props-header">
+        <span class="workflow-props-name">连线</span>
+        <button class="btn btn-sm btn-danger" data-action="delete-edge">删除</button>
+      </div>
+      <div class="workflow-prop-row">
+        <span class="workflow-prop-port">从：${escapeHtml(fromNode?.name || edge.from)} (${edge.from})</span>
+      </div>
+      <div class="workflow-prop-row">
+        <span class="workflow-prop-port">到：${escapeHtml(toNode?.name || edge.to)} (${edge.to})</span>
+      </div>
+      <div class="workflow-prop-row">
+        <span class="workflow-prop-port">${edge.fromOutput} → ${edge.toInput}</span>
+      </div>
+    `;
+
+    if (fromNode && fromNode.tool === '__condition') {
+      html += `
+        <div class="workflow-props-section">条件分支</div>
+        <div class="workflow-prop-row">
+          <label class="workflow-prop-label">分支类型</label>
+          <select class="workflow-prop-input" data-edge-branch="${state.selectedEdge}">
+            <option value="true" ${edge.fromOutput === 'true' ? 'selected' : ''}>满足条件 (true)</option>
+            <option value="false" ${edge.fromOutput === 'false' ? 'selected' : ''}>不满足条件 (false)</option>
+          </select>
+        </div>
+      `;
+    }
+
+    el.props.innerHTML = html;
+
+    el.props.querySelectorAll('[data-edge-branch]').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const idx = Number(sel.dataset.edgeBranch);
+        const branch = sel.value;
+        if (state.edges[idx]) {
+          state.edges[idx].fromOutput = branch;
+          renderEdges();
+        }
+      });
+    });
+  }
+
   // ── 属性面板 ──
   function renderProps() {
+    if (state.selectedEdge !== null) {
+      renderEdgeProps();
+      return;
+    }
     if (!state.selectedNode) {
       el.props.innerHTML = '<div class="workflow-props-placeholder">选中节点以配置参数</div>';
       return;
@@ -534,7 +690,7 @@
     let html = `
       <div class="workflow-props-header">
         <span class="workflow-props-icon">${node.icon}</span>
-        <span class="workflow-props-name">${node.name}</span>
+        <span class="workflow-props-name">${node.name} <span style="color:var(--color-text-muted);font-weight:400;font-size:0.85em;">(${node.id})</span></span>
         <button class="btn btn-sm btn-danger" data-action="delete-node">删除</button>
       </div>
     `;
@@ -561,7 +717,7 @@
           html += `
             <div class="workflow-prop-row">
               <label class="workflow-prop-label">${p.label}</label>
-              <input type="text" class="workflow-prop-input" data-param="${p.name}" value="${val}">
+              <input type="text" class="workflow-prop-input" data-param="${p.name}" value="${val}" placeholder="支持 {{节点ID.字段名}} 表达式引用">
             </div>`;
         }
       });
@@ -582,7 +738,7 @@
           html += `
             <div class="workflow-prop-row">
               <label class="workflow-prop-label">${i.label}</label>
-              <textarea class="workflow-prop-input workflow-prop-textarea" data-input="${i.name}" rows="4" placeholder="输入初始值…">${escapeHtml(val)}</textarea>
+              <textarea class="workflow-prop-input workflow-prop-textarea" data-input="${i.name}" rows="4" placeholder="输入初始值，支持 {{节点ID.字段名}} 表达式引用">${escapeHtml(val)}</textarea>
             </div>`;
         }
       });
@@ -945,6 +1101,101 @@
     }
   }
 
+  function doDeleteEdge() {
+    if (state.selectedEdge !== null) {
+      removeEdge(state.selectedEdge);
+    }
+  }
+
+  // ── 自动执行 ──
+  function startAutoRun() {
+    if (!state.nodes.length) {
+      showToast('画布上没有节点，无法自动执行', 'warning');
+      if (el.autoRunToggle) el.autoRunToggle.checked = false;
+      return;
+    }
+    state.autoRun.enabled = true;
+    updateAutoRunUI();
+    scheduleNext();
+  }
+
+  function stopAutoRun() {
+    state.autoRun.enabled = false;
+    if (state.autoRun.timerId) {
+      clearTimeout(state.autoRun.timerId);
+      state.autoRun.timerId = null;
+    }
+    state.autoRun.nextRun = null;
+    updateAutoRunUI();
+  }
+
+  function scheduleNext() {
+    if (!state.autoRun.enabled) return;
+
+    const mode = el.autoRunMode ? el.autoRunMode.value : 'interval';
+    const expr = el.autoRunExpr ? el.autoRunExpr.value.trim() : '5';
+    let delayMs;
+
+    if (mode === 'interval') {
+      const seconds = parseFloat(expr) || 5;
+      delayMs = Math.max(1000, seconds * 1000);
+    } else {
+      try {
+        if (typeof Cron === 'undefined') {
+          throw new Error('Croner 库未加载');
+        }
+        const job = new Cron(expr);
+        const runs = job.nextRuns(1);
+        if (!runs || !runs.length) {
+          throw new Error('无法计算下次执行时间');
+        }
+        delayMs = runs[0].getTime() - Date.now();
+        if (delayMs < 0) delayMs = 0;
+      } catch (e) {
+        showToast('Cron 表达式错误: ' + e.message, 'error');
+        stopAutoRun();
+        if (el.autoRunToggle) el.autoRunToggle.checked = false;
+        return;
+      }
+    }
+
+    state.autoRun.nextRun = Date.now() + delayMs;
+    updateAutoRunUI();
+
+    state.autoRun.timerId = setTimeout(async () => {
+      if (!state.autoRun.enabled) return;
+      try {
+        await doRun();
+      } catch (e) {
+        // doRun 内部已处理错误
+      }
+      scheduleNext();
+    }, delayMs);
+  }
+
+  function updateAutoRunUI() {
+    if (!el.autoRunCountdown) return;
+    if (!state.autoRun.enabled) {
+      el.autoRunCountdown.textContent = '已停止';
+      el.autoRunCountdown.classList.remove('is-active');
+      return;
+    }
+    el.autoRunCountdown.classList.add('is-active');
+    if (!state.autoRun.nextRun) {
+      el.autoRunCountdown.textContent = '计算中…';
+      return;
+    }
+    const remaining = Math.max(0, Math.ceil((state.autoRun.nextRun - Date.now()) / 1000));
+    const mode = el.autoRunMode ? el.autoRunMode.value : 'interval';
+    if (mode === 'cron' && remaining >= 60) {
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      el.autoRunCountdown.textContent = `${mins}m${secs}s`;
+    } else {
+      el.autoRunCountdown.textContent = `${remaining}s`;
+    }
+  }
+
   const ACTIONS = {
     run: doRun,
     clear: doClear,
@@ -954,7 +1205,8 @@
     'delete-local': doDeleteLocal,
     'clear-logs': doClearLogs,
     'clear-results': doClearResults,
-    'delete-node': doDeleteNode
+    'delete-node': doDeleteNode,
+    'delete-edge': doDeleteEdge
   };
 
   init();

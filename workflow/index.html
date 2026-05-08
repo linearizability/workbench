@@ -40,6 +40,18 @@
             <button class="btn btn-sm btn-secondary" data-action="save">导出文件</button>
             <button class="btn btn-sm btn-secondary" data-action="load">导入文件</button>
           </div>
+          <div class="toolbar-group auto-run-group">
+            <label class="auto-run-toggle" title="启用/停止自动执行">
+              <input type="checkbox" id="auto-run-toggle">
+              <span class="auto-run-label">自动执行</span>
+            </label>
+            <select id="auto-run-mode" class="workflow-saved-select" style="min-width:70px;max-width:90px;">
+              <option value="interval">间隔</option>
+              <option value="cron">Cron</option>
+            </select>
+            <input type="text" id="auto-run-expr" class="workflow-saved-select" style="min-width:80px;max-width:110px;" placeholder="5" value="5">
+            <span id="auto-run-countdown" class="auto-run-countdown">已停止</span>
+          </div>
         </div>
 
         <div class="workflow-canvas" id="workflow-canvas">
@@ -78,11 +90,28 @@
 
   <script src="../assets/js/utils.js"></script>
   <script src="../assets/js/diff.min.js"></script>
+  <script src="../assets/js/croner.umd.min.js"></script>
   <script src="../assets/js/tool-registry.js"></script>
   <script src="../assets/js/workflow-engine.js"></script>
   <script src="../json/manifest.js"></script>
   <script src="../diff/manifest.js"></script>
   <script src="../http-request/manifest.js"></script>
+  <script src="../base64/manifest.js"></script>
+  <script src="../uuid/manifest.js"></script>
+  <script src="../md5/manifest.js"></script>
+  <script src="../url/manifest.js"></script>
+  <script src="../jwt/manifest.js"></script>
+  <script src="../timestamp/manifest.js"></script>
+  <script src="../cron/manifest.js"></script>
+  <script src="../qrcode/manifest.js"></script>
+  <script src="../regex/manifest.js"></script>
+  <script src="../file-generator/manifest.js"></script>
+  <script src="../image-generator/manifest.js"></script>
+  <script src="../properties-yaml/manifest.js"></script>
+  <script src="../svg-editor/manifest.js"></script>
+  <script src="../json-to-struct/manifest.js"></script>
+  <script src="../notepad/manifest.js"></script>
+  <script src="../links/manifest.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

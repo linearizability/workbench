@@ -135,9 +135,54 @@
   stroke-width: 3;
 }
 
+.workflow-edge-true {
+  stroke: var(--color-success);
+}
+
+.workflow-edge-false {
+  stroke: var(--color-danger);
+  stroke-dasharray: 6 4;
+}
+
 .workflow-edge-drawing {
   stroke-dasharray: 5 5;
   stroke: var(--color-warning);
+}
+
+/* ── 自动执行控件 ── */
+.auto-run-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.auto-run-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  user-select: none;
+}
+
+.auto-run-toggle input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.auto-run-label {
+  font-size: var(--font-size-xs);
+}
+
+.auto-run-countdown {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  min-width: 3.5rem;
+  text-align: right;
+}
+
+.auto-run-countdown.is-active {
+  color: var(--color-success);
 }
 
 /* ── 节点层 ── */
