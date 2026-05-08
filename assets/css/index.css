@@ -8,6 +8,11 @@ body {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 280px 1fr;
+  transition: grid-template-columns var(--transition-base);
+}
+
+.shell.is-sidebar-collapsed {
+  grid-template-columns: 60px 1fr;
 }
 
 .sidebar {
@@ -16,11 +21,21 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  overflow: hidden;
+  transition: none;
 }
 
 .sidebar-header {
   padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
   border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.sidebar-header-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .sidebar-title {
@@ -33,6 +48,66 @@ body {
 .sidebar-subtitle {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+}
+
+.sidebar-collapse-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.sidebar-collapse-btn:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+  border-color: var(--color-border-hover);
+}
+
+/* 折叠状态 */
+.shell.is-sidebar-collapsed .sidebar-header-text,
+.shell.is-sidebar-collapsed .sidebar-subtitle,
+.shell.is-sidebar-collapsed .sidebar-title,
+.shell.is-sidebar-collapsed .menu-text,
+.shell.is-sidebar-collapsed .menu-caret,
+.shell.is-sidebar-collapsed .sidebar-footer-text {
+  display: none;
+}
+
+.shell.is-sidebar-collapsed .sidebar-header {
+  padding: var(--spacing-md) var(--spacing-sm);
+  justify-content: center;
+}
+
+.shell.is-sidebar-collapsed .menu {
+  padding: var(--spacing-sm);
+  align-items: center;
+}
+
+.shell.is-sidebar-collapsed .menu-item {
+  padding: 0.5rem;
+  justify-content: center;
+}
+
+.shell.is-sidebar-collapsed .menu-sub {
+  display: none;
+}
+
+.shell.is-sidebar-collapsed .menu-group.is-collapsed .menu-caret {
+  display: none;
+}
+
+.shell.is-sidebar-collapsed .sidebar-footer {
+  padding: var(--spacing-sm);
+  text-align: center;
 }
 
 .menu {
@@ -61,6 +136,11 @@ body {
 .menu-item:hover {
   background: var(--color-bg-secondary);
   border-color: var(--color-border);
+}
+
+/* 折叠状态下菜单项用 title 提示 */
+.shell.is-sidebar-collapsed .menu-item {
+  position: relative;
 }
 
 .menu-item.is-active {

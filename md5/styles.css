@@ -1,3 +1,5 @@
+/* MD5 计算 - 工具差异样式 */
+
 .md5-section {
     margin-bottom: 1.25rem;
 }
@@ -7,7 +9,7 @@
     margin-bottom: 0.5rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--text-secondary, #6b7280);
+    color: var(--color-text-secondary);
 }
 
 .md5-input {
@@ -15,17 +17,17 @@
     padding: 0.75rem 1rem;
     font-size: 0.9375rem;
     line-height: 1.6;
-    color: var(--text-primary, #1f2937);
-    background: var(--surface, #ffffff);
-    border: 1px solid var(--border, #e5e7eb);
-    border-radius: 0.5rem;
+    color: var(--color-text);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
     resize: vertical;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .md5-input:focus {
     outline: none;
-    border-color: var(--primary, #3b82f6);
+    border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
@@ -39,17 +41,17 @@
     flex: 1;
     padding: 0.75rem 1rem;
     font-size: 0.9375rem;
-    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-    color: var(--text-primary, #1f2937);
-    background: var(--surface-muted, #f9fafb);
-    border: 1px solid var(--border, #e5e7eb);
-    border-radius: 0.5rem;
+    font-family: var(--font-family-mono);
+    color: var(--color-text);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .md5-output:focus {
     outline: none;
-    border-color: var(--primary, #3b82f6);
+    border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
@@ -64,7 +66,7 @@
     align-items: center;
     gap: 0.375rem;
     font-size: 0.875rem;
-    color: var(--text-secondary, #6b7280);
+    color: var(--color-text-secondary);
     cursor: pointer;
     user-select: none;
 }
@@ -80,7 +82,7 @@
     align-items: center;
     margin: 1.5rem 0;
     font-size: 0.875rem;
-    color: var(--text-secondary, #6b7280);
+    color: var(--color-text-secondary);
 }
 
 .md5-divider::before,
@@ -88,7 +90,7 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: var(--border, #e5e7eb);
+    background: var(--color-border);
 }
 
 .md5-divider::before {
@@ -103,16 +105,16 @@
     position: relative;
     padding: 1.5rem;
     text-align: center;
-    background: var(--surface-muted, #f9fafb);
-    border: 2px dashed var(--border, #e5e7eb);
-    border-radius: 0.5rem;
+    background: var(--color-bg-secondary);
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-md);
     transition: border-color 0.2s, background 0.2s;
     cursor: pointer;
 }
 
 .file-drop-zone.is-dragover {
     background: rgba(59, 130, 246, 0.05);
-    border-color: var(--primary, #3b82f6);
+    border-color: var(--color-primary);
 }
 
 .file-input {
@@ -133,18 +135,18 @@
 .file-drop-hint p {
     margin: 0;
     font-size: 0.875rem;
-    color: var(--text-secondary, #6b7280);
+    color: var(--color-text-secondary);
 }
 
 .file-browse {
-    color: var(--primary, #3b82f6);
+    color: var(--color-primary);
     text-decoration: underline;
 }
 
 .file-size-hint {
     margin-top: 0.25rem !important;
     font-size: 0.75rem !important;
-    color: var(--text-muted, #9ca3af) !important;
+    color: var(--color-text-muted) !important;
 }
 
 .file-progress {
@@ -157,7 +159,7 @@
 .file-progress-track {
     flex: 1;
     height: 0.5rem;
-    background: var(--border, #e5e7eb);
+    background: var(--color-border);
     border-radius: 9999px;
     overflow: hidden;
 }
@@ -165,7 +167,7 @@
 .file-progress-bar {
     width: 0%;
     height: 100%;
-    background: var(--primary, #3b82f6);
+    background: var(--color-primary);
     border-radius: 9999px;
     transition: width 0.2s ease;
 }
@@ -173,7 +175,7 @@
 .file-progress-text {
     font-size: 0.75rem;
     font-variant-numeric: tabular-nums;
-    color: var(--text-secondary, #6b7280);
+    color: var(--color-text-secondary);
     min-width: 2.5rem;
     text-align: right;
 }
@@ -181,6 +183,21 @@
 .file-info {
     margin-top: 0.5rem;
     font-size: 0.875rem;
-    color: var(--text-secondary, #6b7280);
+    color: var(--color-text-secondary);
     word-break: break-all;
+}
+
+@media (max-width: 768px) {
+    .md5-output-wrap {
+        flex-wrap: wrap;
+    }
+
+    .md5-output {
+        min-width: 0;
+        font-size: var(--font-size-xs);
+    }
+
+    .file-progress {
+        flex-wrap: wrap;
+    }
 }

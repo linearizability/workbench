@@ -32,7 +32,9 @@
     frame: null,
     navButtons: [],
     toolboxToggle: null,
-    toolboxGroup: null
+    toolboxGroup: null,
+    collapseBtn: null,
+    shell: null
   };
 
   function init() {
@@ -46,6 +48,8 @@
     elements.navButtons = Array.from(document.querySelectorAll('[data-nav]'));
     elements.toolboxToggle = document.querySelector('[data-toggle="toolbox"]');
     elements.toolboxGroup = document.querySelector('.menu-group');
+    elements.collapseBtn = document.getElementById('sidebar-collapse-btn');
+    elements.shell = document.querySelector('.shell');
   }
 
   function bindEvents() {
@@ -62,6 +66,12 @@
       });
     }
 
+    if (elements.collapseBtn) {
+      elements.collapseBtn.addEventListener('click', () => {
+        toggleSidebar();
+      });
+    }
+
     window.addEventListener('hashchange', () => {
       const key = getRouteFromHash();
       if (key) navigate(key, { updateHash: false });
@@ -72,6 +82,13 @@
     if (!elements.toolboxGroup || !elements.toolboxToggle) return;
     const collapsed = elements.toolboxGroup.classList.toggle('is-collapsed');
     elements.toolboxToggle.setAttribute('aria-expanded', String(!collapsed));
+  }
+
+  function toggleSidebar() {
+    if (!elements.shell || !elements.collapseBtn) return;
+    const collapsed = elements.shell.classList.toggle('is-sidebar-collapsed');
+    elements.collapseBtn.textContent = collapsed ? '▸' : '◂';
+    elements.collapseBtn.title = collapsed ? '展开侧边栏' : '收起侧边栏';
   }
 
   function applyInitialRoute() {
@@ -98,8 +115,9 @@
     elements.frame.src = src;
     setActiveNav(key);
 
-    // 当切到 json 时，确保“工具箱”展开
-    if (key === 'json' && elements.toolboxGroup && elements.toolboxToggle) {
+    // 当切到工具箱内的子工具时，自动展开工具箱
+    const toolboxKeys = ['json','file-generator','image-generator','properties-yaml','svg-editor','md5','base64','qrcode','timestamp','cron','url','jwt','uuid','regex','diff','json-to-struct','http-request'];
+    if (toolboxKeys.includes(key) && elements.toolboxGroup && elements.toolboxToggle) {
       elements.toolboxGroup.classList.remove('is-collapsed');
       elements.toolboxToggle.setAttribute('aria-expanded', 'true');
     }

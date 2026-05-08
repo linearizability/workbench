@@ -18,3 +18,14 @@
   height: 16px;
 }
 
+@media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+  }
+
+  .toolbar-group {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
