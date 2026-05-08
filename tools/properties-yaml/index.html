@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Properties ↔ YAML - Workbench</title>
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../../assets/css/components/card.css">
+  <link rel="stylesheet" href="../../assets/css/components/editor.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>Properties ↔ YAML</h1>
+      <p class="tool-description">在 `.properties` 与 YAML 之间互转（纯前端，本地处理）</p>
+    </header>
+
+    <main class="tool-main">
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <button class="btn btn-primary" data-action="to-yaml">转 YAML</button>
+          <button class="btn btn-secondary" data-action="to-properties">转 Properties</button>
+        </div>
+
+        <div class="toolbar-group">
+          <label class="toggle">
+            <input id="preserve-strings" type="checkbox" checked>
+            <span>全部按字符串处理</span>
+          </label>
+          <label class="toggle">
+            <input id="sort-keys" type="checkbox">
+            <span>排序键</span>
+          </label>
+        </div>
+
+        <div class="toolbar-group">
+          <button class="btn btn-secondary" data-action="copy">复制结果</button>
+          <button class="btn btn-secondary" data-action="download">下载</button>
+          <button class="btn btn-secondary" data-action="clear">清空</button>
+        </div>
+      </div>
+
+      <div class="editor-container">
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-title">输入（Properties 或 YAML）</span>
+            <span class="editor-info" id="input-info">0 字符</span>
+          </div>
+          <div class="editor-body">
+            <textarea id="input-editor" class="editor" placeholder="粘贴 .properties 或 YAML 内容..."></textarea>
+          </div>
+        </div>
+
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-title">输出结果</span>
+            <span class="editor-info" id="output-info">0 字符</span>
+          </div>
+          <div class="editor-body">
+            <div id="output-editor" class="editor editor-output">
+              <div class="placeholder">结果将显示在这里...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="tool-footer">
+      <p>支持常见 `key=value` / `a.b.c=1` 展平规则；数组会以 `arr[0]` 形式输出</p>
+    </footer>
+  </div>
+
+  <!-- js-yaml 用于 YAML 解析与生成 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+
+  <script src="../../assets/js/utils.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+

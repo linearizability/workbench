@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片生成器 - Workbench</title>
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../../assets/css/components/card.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>图片生成器</h1>
+      <p class="tool-description">纯前端生成占位图/标注图，可下载 PNG/JPEG/WebP</p>
+    </header>
+
+    <main class="tool-main">
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <label class="field">
+            <span class="field-label">宽</span>
+            <input id="w" class="field-input" type="number" min="1" value="800">
+          </label>
+          <label class="field">
+            <span class="field-label">高</span>
+            <input id="h" class="field-input" type="number" min="1" value="450">
+          </label>
+          <label class="field">
+            <span class="field-label">单位</span>
+            <select id="unit">
+              <option value="px" selected>px</option>
+              <option value="mm">mm</option>
+              <option value="cm">cm</option>
+              <option value="in">in</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">DPI</span>
+            <input id="dpi" class="field-input field-dpi" type="number" min="36" max="600" value="96">
+          </label>
+          <label class="field">
+            <span class="field-label">背景</span>
+            <input id="bg" class="field-input field-color" type="color" value="#1d4ed8">
+          </label>
+          <label class="field">
+            <span class="field-label">文字</span>
+            <input id="fg" class="field-input field-color" type="color" value="#ffffff">
+          </label>
+          <label class="field field-check" title="是否显示背景网格">
+            <input id="grid" type="checkbox" checked>
+            <span class="field-label">网格</span>
+          </label>
+          <label class="field">
+            <span class="field-label">格式</span>
+            <select id="fmt">
+              <option value="image/png" selected>PNG</option>
+              <option value="image/jpeg">JPEG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="toolbar-group">
+          <button class="btn btn-secondary" data-action="refresh">刷新预览</button>
+          <button class="btn btn-primary" data-action="download">下载图片</button>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-field">
+              <label class="form-label" for="text">文本（可选）</label>
+              <input id="text" class="form-input" type="text" placeholder="例如：800×450" value="800×450">
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="filename">文件名</label>
+              <input id="filename" class="form-input" type="text" placeholder="例如：placeholder" value="placeholder">
+            </div>
+          </div>
+
+          <div class="preview-wrap">
+            <canvas id="canvas" class="preview-canvas"></canvas>
+            <div class="preview-meta">
+              <span id="meta"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="tool-footer">
+      <p>生成在本地完成，不会上传任何图片</p>
+    </footer>
+  </div>
+
+  <script src="../../assets/js/utils.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+

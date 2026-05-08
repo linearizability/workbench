@@ -46,25 +46,25 @@
   // ── 加载工具清单 ──
   async function loadToolManifests() {
     // 阶段 2：加载 JSON、Diff、HTTP 请求工具
-    await loadScript('../json/manifest.js');
-    await loadScript('../diff/manifest.js');
-    await loadScript('../http-request/manifest.js');
+    await loadScript('../tools/json/manifest.js');
+    await loadScript('../tools/diff/manifest.js');
+    await loadScript('../tools/http-request/manifest.js');
     // 阶段 3：加载 Base64、UUID、MD5、URL、JWT、Timestamp 工具
-    await loadScript('../base64/manifest.js');
-    await loadScript('../uuid/manifest.js');
-    await loadScript('../md5/manifest.js');
-    await loadScript('../url/manifest.js');
-    await loadScript('../jwt/manifest.js');
-    await loadScript('../timestamp/manifest.js');
+    await loadScript('../tools/base64/manifest.js');
+    await loadScript('../tools/uuid/manifest.js');
+    await loadScript('../tools/md5/manifest.js');
+    await loadScript('../tools/url/manifest.js');
+    await loadScript('../tools/jwt/manifest.js');
+    await loadScript('../tools/timestamp/manifest.js');
     // 阶段 3（续）：加载剩余工具
-    await loadScript('../cron/manifest.js');
-    await loadScript('../qrcode/manifest.js');
-    await loadScript('../regex/manifest.js');
-    await loadScript('../file-generator/manifest.js');
-    await loadScript('../image-generator/manifest.js');
-    await loadScript('../properties-yaml/manifest.js');
-    await loadScript('../svg-editor/manifest.js');
-    await loadScript('../json-to-struct/manifest.js');
+    await loadScript('../tools/cron/manifest.js');
+    await loadScript('../tools/qrcode/manifest.js');
+    await loadScript('../tools/regex/manifest.js');
+    await loadScript('../tools/file-generator/manifest.js');
+    await loadScript('../tools/image-generator/manifest.js');
+    await loadScript('../tools/properties-yaml/manifest.js');
+    await loadScript('../tools/svg-editor/manifest.js');
+    await loadScript('../tools/json-to-struct/manifest.js');
     await loadScript('../notepad/manifest.js');
     await loadScript('../links/manifest.js');
 

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON 工具 - Workbench</title>
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../../assets/css/components/card.css">
+  <link rel="stylesheet" href="../../assets/css/components/modal.css">
+  <link rel="stylesheet" href="../../assets/css/components/editor.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>JSON 工具</h1>
+      <p class="tool-description">格式化、验证、转换和操作 JSON 数据</p>
+    </header>
+
+    <main class="tool-main">
+      <!-- 工具栏 -->
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <button class="btn btn-primary" data-action="format">格式化</button>
+          <button class="btn btn-secondary" data-action="minify">压缩</button>
+          <button class="btn btn-secondary" data-action="validate">验证</button>
+        </div>
+
+        <div class="toolbar-group">
+          <label class="select-wrapper">
+            <select id="indent-select">
+              <option value="2">2 空格</option>
+              <option value="4" selected>4 空格</option>
+              <option value="tab">制表符</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="toolbar-group">
+          <button class="btn btn-secondary" data-action="sort-keys">排序键名</button>
+          <button class="btn btn-secondary" data-action="clear">清空</button>
+        </div>
+      </div>
+
+      <!-- 转换工具栏 -->
+      <div class="toolbar toolbar-secondary">
+        <div class="toolbar-group">
+          <button class="btn btn-secondary" data-action="to-xml">转 XML</button>
+          <button class="btn btn-secondary" data-action="to-yaml">转 YAML</button>
+          <button class="btn btn-secondary" data-action="to-csv">转 CSV</button>
+        </div>
+
+        <div class="toolbar-group">
+          <button class="btn btn-secondary" data-action="copy">复制结果</button>
+          <button class="btn btn-secondary" data-action="download">下载</button>
+        </div>
+      </div>
+
+      <!-- 编辑区域 -->
+      <div class="editor-container">
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-title">输入 JSON</span>
+            <span class="editor-info" id="input-info">0 字符</span>
+            <button class="btn btn-secondary btn-sm" data-action="upload-file" title="上传 JSON 文件">上传文件</button>
+          </div>
+          <div class="editor-body editor-drop-zone" id="editor-drop-zone">
+            <textarea id="input-editor" class="editor" placeholder="在此粘贴或输入 JSON 数据，也可拖放文件到此处..."></textarea>
+            <div class="drop-overlay" id="drop-overlay">
+              <svg class="drop-overlay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <span>释放以导入文件</span>
+            </div>
+          </div>
+          <input type="file" id="file-input" accept=".json,.txt,.log,.csv,.xml,.yaml,.yml" class="u-hidden">
+        </div>
+
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-title">输出结果</span>
+            <span class="editor-info" id="output-info">0 字符</span>
+          </div>
+          <div class="editor-body">
+            <div id="output-editor" class="editor editor-output">
+              <div class="placeholder">结果将显示在这里...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 状态信息 -->
+      <div class="status-bar">
+        <div class="status-item" id="validation-status">
+          <span class="status-icon"></span>
+          <span class="status-text">等待输入</span>
+        </div>
+        <div class="status-item" id="json-stats">
+          <span class="stats-label">统计：</span>
+          <span class="stats-value">-</span>
+        </div>
+      </div>
+
+      <!-- 路径查询 -->
+      <div class="query-section">
+        <div class="query-bar">
+          <label for="query-input" class="query-label">路径查询：</label>
+          <input type="text" id="query-input" class="query-input" placeholder="例如：data.users[0].name">
+          <button class="btn btn-primary btn-sm" data-action="query">查询</button>
+        </div>
+        <div class="query-result" id="query-result">
+          <div class="placeholder">查询结果将显示在这里...</div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="tool-footer">
+      <p>支持语法高亮、实时验证、格式转换等功能</p>
+    </footer>
+  </div>
+
+  <!-- Prism.js 用于语法高亮 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet">
+
+  <!-- js-yaml 用于 YAML 转换 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+
+  <script src="../../assets/js/utils.js"></script>
+  <script src="manifest.js"></script>
+  <script src="core.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

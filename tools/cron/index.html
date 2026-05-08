@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cron 表达式 - Workbench</title>
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../../assets/css/components/card.css">
+  <link rel="stylesheet" href="../../assets/css/components/editor.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>Cron 表达式</h1>
+      <p class="tool-description">解析、生成与验证 Cron 表达式，查看自然语言描述和下次执行时间</p>
+    </header>
+
+    <main class="tool-main">
+      <!-- 工具栏 -->
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <button class="btn btn-primary" data-mode="parse">解析</button>
+          <button class="btn btn-secondary" data-mode="generate">生成</button>
+        </div>
+        <div class="toolbar-group cron-presets">
+          <button class="btn btn-sm btn-secondary" data-preset="* * * * *">每分钟</button>
+          <button class="btn btn-sm btn-secondary" data-preset="0 * * * *">每小时</button>
+          <button class="btn btn-sm btn-secondary" data-preset="0 0 * * *">每天</button>
+          <button class="btn btn-sm btn-secondary" data-preset="0 9 * * 1">每周一</button>
+          <button class="btn btn-sm btn-secondary" data-preset="0 9 1 * *">每月1号</button>
+          <button class="btn btn-sm btn-secondary" data-preset="0 9 * * 1-5">工作日</button>
+        </div>
+      </div>
+
+      <!-- 解析模式 -->
+      <div id="panel-parse" class="cron-panel">
+        <div class="editor-container cron-editor-container">
+          <!-- 输入侧 -->
+          <div class="editor-wrapper">
+            <div class="editor-header">
+              <span class="editor-title">Cron 表达式</span>
+              <div class="editor-header-actions">
+                <button class="btn btn-sm btn-secondary" data-action="copy-input">复制</button>
+                <button class="btn btn-sm btn-secondary" data-action="clear">清空</button>
+              </div>
+            </div>
+            <div class="editor-body">
+              <textarea class="editor" id="parse-input" placeholder="输入 Cron 表达式，如 0 9 * * 1-5"></textarea>
+            </div>
+            <div class="cron-fields">
+              <div class="cron-field"><span class="cron-field-label">分</span><span class="cron-field-val" id="f-min">-</span></div>
+              <div class="cron-field"><span class="cron-field-label">时</span><span class="cron-field-val" id="f-hour">-</span></div>
+              <div class="cron-field"><span class="cron-field-label">日</span><span class="cron-field-val" id="f-dom">-</span></div>
+              <div class="cron-field"><span class="cron-field-label">月</span><span class="cron-field-val" id="f-mon">-</span></div>
+              <div class="cron-field"><span class="cron-field-label">周</span><span class="cron-field-val" id="f-dow">-</span></div>
+            </div>
+          </div>
+
+          <!-- 输出侧 -->
+          <div class="editor-wrapper">
+            <div class="editor-header">
+              <span class="editor-title">解析结果</span>
+              <div class="editor-header-actions">
+                <button class="btn btn-sm btn-secondary" data-action="copy-desc">复制描述</button>
+              </div>
+            </div>
+            <div class="editor-body editor-output" id="parse-result">
+              <div class="cron-result-content">
+                <div class="cron-desc" id="cron-desc">输入表达式以查看解析结果…</div>
+                <div class="cron-next-runs">
+                  <h4>未来 10 次执行时间</h4>
+                  <ul id="next-runs-list"><li class="placeholder">-</li></ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 生成模式 -->
+      <div id="panel-generate" class="cron-panel u-hidden">
+        <div class="editor-container cron-editor-container">
+          <!-- 配置侧 -->
+          <div class="editor-wrapper">
+            <div class="editor-header">
+              <span class="editor-title">可视化配置</span>
+              <button class="btn btn-sm btn-secondary" data-action="reset-gen">重置</button>
+            </div>
+            <div class="editor-body" id="gen-body">
+              <div class="cron-gen-fields">
+                <!-- 分钟 -->
+                <div class="cron-gen-field" data-field="min">
+                  <div class="cron-gen-field-row">
+                    <label>分钟</label>
+                    <input type="text" class="cron-gen-input" id="gen-min" value="0" placeholder="* 或 0 或 */5">
+                  </div>
+                  <div class="cron-gen-tags">
+                    <button class="cron-tag" data-val="*">任意 (*)</button>
+                    <button class="cron-tag" data-val="0">0 分</button>
+                    <button class="cron-tag" data-val="*/5">每5分</button>
+                    <button class="cron-tag" data-val="*/10">每10分</button>
+                    <button class="cron-tag" data-val="*/15">每15分</button>
+                    <button class="cron-tag" data-val="*/30">每30分</button>
+                  </div>
+                </div>
+                <!-- 小时 -->
+                <div class="cron-gen-field" data-field="hour">
+                  <div class="cron-gen-field-row">
+                    <label>小时</label>
+                    <input type="text" class="cron-gen-input" id="gen-hour" value="*" placeholder="* 或 9 或 9-17">
+                  </div>
+                  <div class="cron-gen-tags">
+                    <button class="cron-tag" data-val="*">任意 (*)</button>
+                    <button class="cron-tag" data-val="0">0 时</button>
+                    <button class="cron-tag" data-val="9">9 时</button>
+                    <button class="cron-tag" data-val="9-17">9-17</button>
+                    <button class="cron-tag" data-val="*/2">每2小时</button>
+                    <button class="cron-tag" data-val="*/3">每3小时</button>
+                  </div>
+                </div>
+                <!-- 日期 -->
+                <div class="cron-gen-field" data-field="dom">
+                  <div class="cron-gen-field-row">
+                    <label>日期</label>
+                    <input type="text" class="cron-gen-input" id="gen-dom" value="*" placeholder="* 或 1 或 1-10">
+                  </div>
+                  <div class="cron-gen-tags">
+                    <button class="cron-tag" data-val="*">任意 (*)</button>
+                    <button class="cron-tag" data-val="1">1 日</button>
+                    <button class="cron-tag" data-val="1-10">1-10</button>
+                    <button class="cron-tag" data-val="*/2">每2天</button>
+                  </div>
+                </div>
+                <!-- 月份 -->
+                <div class="cron-gen-field" data-field="mon">
+                  <div class="cron-gen-field-row">
+                    <label>月份</label>
+                    <input type="text" class="cron-gen-input" id="gen-mon" value="*" placeholder="* 或 1 或 */3">
+                  </div>
+                  <div class="cron-gen-tags">
+                    <button class="cron-tag" data-val="*">任意 (*)</button>
+                    <button class="cron-tag" data-val="1">1 月</button>
+                    <button class="cron-tag" data-val="*/3">每3月</button>
+                    <button class="cron-tag" data-val="*/6">每6月</button>
+                  </div>
+                </div>
+                <!-- 星期 -->
+                <div class="cron-gen-field" data-field="dow">
+                  <div class="cron-gen-field-row">
+                    <label>星期</label>
+                    <input type="text" class="cron-gen-input" id="gen-dow" value="*" placeholder="* 或 1-5 或 0,6">
+                  </div>
+                  <div class="cron-gen-tags">
+                    <button class="cron-tag" data-val="*">任意 (*)</button>
+                    <button class="cron-tag" data-val="1-5">工作日</button>
+                    <button class="cron-tag" data-val="0,6">周末</button>
+                    <button class="cron-tag" data-val="1">周一</button>
+                    <button class="cron-tag" data-val="6">周六</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 输出侧 -->
+          <div class="editor-wrapper">
+            <div class="editor-header">
+              <span class="editor-title">生成的表达式</span>
+              <div class="editor-header-actions">
+                <button class="btn btn-sm btn-secondary" data-action="copy-expr">复制表达式</button>
+              </div>
+            </div>
+            <div class="editor-body editor-output" id="gen-result">
+              <div class="cron-result-content">
+                <div class="cron-expr" id="gen-expr">0 * * * *</div>
+                <div class="cron-desc" id="gen-desc">每小时第 0 分钟</div>
+                <div class="cron-next-runs">
+                  <h4>未来 10 次执行时间</h4>
+                  <ul id="gen-next-runs"></ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../../assets/js/cronstrue.min.js"></script>
+  <script src="../../assets/js/croner.umd.min.js"></script>
+  <script src="../../assets/js/utils.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

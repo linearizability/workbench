@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文件生成器 - Workbench</title>
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../../assets/css/components/card.css">
+  <link rel="stylesheet" href="../../assets/css/components/editor.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>文件生成器</h1>
+      <p class="tool-description">用模板快速生成并下载常见文本文件（JSON/CSV/MD 等）</p>
+    </header>
+
+    <main class="tool-main">
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <label class="select-wrapper">
+            <select id="template-select" aria-label="模板选择">
+              <option value="blank" selected>空白文件</option>
+              <option value="json-config">JSON 配置</option>
+              <option value="csv-sample">CSV 示例</option>
+              <option value="readme">README.md 模板</option>
+              <option value="gitignore">.gitignore（Node）</option>
+              <option value="env">.env 示例</option>
+            </select>
+          </label>
+          <button class="btn btn-secondary" data-action="apply-template">应用模板</button>
+        </div>
+
+        <div class="toolbar-group">
+          <button class="btn btn-primary" data-action="download">下载</button>
+          <button class="btn btn-secondary" data-action="copy">复制内容</button>
+          <button class="btn btn-secondary" data-action="clear">清空</button>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-field">
+              <label class="form-label" for="filename">文件名</label>
+              <input id="filename" class="form-input" type="text" placeholder="例如：config.json">
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="mime">MIME 类型</label>
+              <input id="mime" class="form-input" type="text" placeholder="例如：application/json">
+            </div>
+          </div>
+
+          <div class="editor-wrapper editor-single">
+            <div class="editor-header">
+              <span class="editor-title">文件内容</span>
+              <span class="editor-info" id="content-info">0 字符</span>
+            </div>
+            <div class="editor-body">
+              <textarea id="content" class="editor" placeholder="在这里输入文件内容..."></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="tool-footer">
+      <p>纯前端生成：内容不会上传，直接在浏览器下载</p>
+    </footer>
+  </div>
+
+  <script src="../../assets/js/utils.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+

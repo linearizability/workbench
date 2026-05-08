@@ -7,6 +7,9 @@
 
   const _tools = new Map();
 
+  // 与工具箱同级的独立模块，core.js 在根目录而非 tools/ 下
+  const ROOT_LEVEL_TOOLS = new Set(['links', 'notepad']);
+
   window.TOOL_REGISTRY = {
     /**
      * 注册工具
@@ -41,8 +44,9 @@
       const globalName = `TOOL_${id.toUpperCase().replace(/-/g, '_')}_CORE`;
       if (window[globalName]) return window[globalName];
 
-      // 动态加载 core.js
-      await this._loadScript(`../${id}/core.js`);
+      // 动态加载 core.js（links/notepad 等独立模块在根目录，其余在 tools/ 下）
+      const basePath = ROOT_LEVEL_TOOLS.has(id) ? `../${id}` : `../tools/${id}`;
+      await this._loadScript(`${basePath}/core.js`);
 
       if (!window[globalName]) {
         throw new Error(`Tool "${id}" core.js did not register ${globalName}`);

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JWT 解码 - Workbench</title>
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../../assets/css/components/editor.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>JWT 解码</h1>
+      <p class="tool-description">解析 JWT Token 的 Header、Payload 和 Signature，查看过期时间与签发信息</p>
+    </header>
+
+    <main class="tool-main">
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <button class="btn btn-secondary" data-action="sample">填入示例</button>
+          <button class="btn btn-secondary" data-action="clear">清空</button>
+        </div>
+      </div>
+
+      <div class="editor-container jwt-editor-container">
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-title">JWT Token</span>
+            <div class="editor-header-actions">
+              <button class="btn btn-sm btn-secondary" data-action="copy-input">复制</button>
+            </div>
+          </div>
+          <div class="editor-body">
+            <textarea class="editor" id="jwt-input" placeholder="粘贴 JWT Token 到此处…"></textarea>
+          </div>
+        </div>
+
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-title">解析结果</span>
+            <span class="editor-info" id="jwt-status">等待输入</span>
+          </div>
+          <div class="editor-body editor-output" id="jwt-result">
+            <div class="placeholder">粘贴 Token 以查看解析结果…</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../../assets/js/utils.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON 转 Struct - Workbench</title>
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../../assets/css/components/editor.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>JSON 转 Struct</h1>
+      <p class="tool-description">将 JSON 自动转换为 Java 类或 Go struct，支持嵌套对象递归生成</p>
+    </header>
+
+    <main class="tool-main">
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <button class="btn btn-primary is-active" data-mode="java">Java</button>
+          <button class="btn btn-secondary" data-mode="go">Go</button>
+        </div>
+        <div class="toolbar-group js-java-only">
+          <label class="struct-toggle"><input type="checkbox" id="use-lombok" checked><span>Lombok</span></label>
+        </div>
+        <div class="toolbar-group js-java-only">
+          <input type="text" class="struct-input-sm" id="java-package" placeholder="包名" value="com.example">
+          <input type="text" class="struct-input-sm" id="java-class" placeholder="类名" value="Root">
+        </div>
+        <div class="toolbar-group js-go-only u-hidden">
+          <input type="text" class="struct-input-sm" id="go-package" placeholder="包名" value="main">
+          <input type="text" class="struct-input-sm" id="go-struct" placeholder="结构体名" value="Root">
+        </div>
+        <div class="toolbar-group">
+          <button class="btn btn-secondary" data-action="convert">转换</button>
+          <button class="btn btn-secondary" data-action="copy">复制</button>
+          <button class="btn btn-secondary" data-action="clear">清空</button>
+        </div>
+      </div>
+
+      <div class="editor-container struct-editor-container">
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-title">JSON</span>
+            <div class="editor-header-actions">
+              <button class="btn btn-sm btn-secondary" data-action="sample">填入示例</button>
+            </div>
+          </div>
+          <div class="editor-body">
+            <textarea class="editor" id="json-input" placeholder="粘贴 JSON 到此处…"></textarea>
+          </div>
+        </div>
+
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-title" id="output-label">Java 类</span>
+            <span class="editor-info" id="struct-status">等待输入</span>
+          </div>
+          <div class="editor-body editor-output" id="struct-result">
+            <div class="placeholder">粘贴 JSON 并点击「转换」…</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../../assets/js/utils.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

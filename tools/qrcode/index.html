@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>二维码工具 - Workbench</title>
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../../assets/css/components/card.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>二维码工具</h1>
+      <p class="tool-description">生成与解析二维码，支持自定义样式与图片导入</p>
+    </header>
+
+    <div class="qr-tabs">
+      <button type="button" class="qr-tab is-active" data-tab="generate">生成二维码</button>
+      <button type="button" class="qr-tab" data-tab="parse">解析二维码</button>
+    </div>
+
+    <main class="tool-main">
+      <!-- ===== 生成面板 ===== -->
+      <div class="tab-panel is-active" id="panel-generate">
+        <section class="card">
+          <div class="card-body">
+            <div class="form-field" style="margin-bottom: var(--spacing-md);">
+              <label class="form-label" for="qr-input">输入内容</label>
+              <textarea id="qr-input" class="form-input qr-textarea" placeholder="在此输入要编码的文本或网址…" rows="3"></textarea>
+              <div class="char-count"><span id="char-count">0</span> 字符</div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-field">
+                <label class="form-label">尺寸 (px)</label>
+                <div class="field">
+                  <input type="number" id="qr-size" class="field-input" value="256" min="64" max="1024" step="16">
+                </div>
+              </div>
+              <div class="form-field">
+                <label class="form-label">纠错等级</label>
+                <div class="field">
+                  <select id="qr-ec-level" class="field-input field-select">
+                    <option value="L">L — 7%</option>
+                    <option value="M" selected>M — 15%</option>
+                    <option value="Q">Q — 25%</option>
+                    <option value="H">H — 30%</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-field">
+                <label class="form-label">前景色</label>
+                <div class="field">
+                  <input type="color" id="qr-fg-color" class="field-input field-color" value="#000000">
+                </div>
+              </div>
+              <div class="form-field">
+                <label class="form-label">背景色</label>
+                <div class="field">
+                  <input type="color" id="qr-bg-color" class="field-input field-color" value="#ffffff">
+                </div>
+              </div>
+              <div class="form-field">
+                <label class="form-label">边距</label>
+                <div class="field">
+                  <input type="number" id="qr-margin" class="field-input field-dpi" value="4" min="0" max="10">
+                </div>
+              </div>
+            </div>
+
+            <div class="toolbar" style="margin-bottom: var(--spacing-md);">
+              <div class="toolbar-group">
+                <button class="btn btn-primary" data-action="generate">生成</button>
+                <button class="btn btn-secondary" data-action="clear-generate">清空</button>
+              </div>
+            </div>
+
+            <div class="qr-preview-wrap">
+              <canvas id="qr-canvas" class="qr-canvas"></canvas>
+              <div class="qr-meta" id="qr-meta"></div>
+            </div>
+
+            <div class="toolbar" style="margin-top: var(--spacing-md);">
+              <div class="toolbar-group">
+                <button class="btn btn-primary" data-action="download-png">下载 PNG</button>
+                <button class="btn btn-secondary" data-action="download-svg">下载 SVG</button>
+                <button class="btn btn-secondary" data-action="copy-image">复制图片</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===== 解析面板 ===== -->
+      <div class="tab-panel" id="panel-parse">
+        <section class="card">
+          <div class="card-body">
+            <div class="form-field" style="margin-bottom: var(--spacing-md);">
+              <label class="form-label">图片输入</label>
+              <div class="file-drop-zone" id="parse-drop-zone">
+                <div class="file-drop-zone-content">
+                  <svg class="file-drop-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                  <p>拖放图片到此处，或点击选择文件</p>
+                  <p class="u-text-muted" style="font-size: var(--font-size-xs);">支持 PNG / JPG / BMP / WebP</p>
+                </div>
+              </div>
+              <input type="file" id="parse-file-input" accept="image/*" class="u-hidden">
+            </div>
+
+            <div class="toolbar" style="margin-bottom: var(--spacing-md);">
+              <div class="toolbar-group">
+                <button class="btn btn-secondary" data-action="clipboard-image">从剪贴板粘贴</button>
+              </div>
+            </div>
+
+            <div class="parse-preview-wrap u-hidden" id="parse-preview-wrap">
+              <label class="form-label">图片预览</label>
+              <img id="parse-preview" class="parse-preview-img" alt="二维码图片预览">
+            </div>
+
+            <div class="toolbar" style="margin-bottom: var(--spacing-md);">
+              <div class="toolbar-group">
+                <button class="btn btn-primary" data-action="parse">解析</button>
+                <button class="btn btn-secondary" data-action="clear-parse">清空</button>
+              </div>
+            </div>
+
+            <div class="parse-result-wrap">
+              <label class="form-label">解析结果 <span id="parse-result-type"></span></label>
+              <div class="parse-result-row">
+                <textarea id="parse-result" class="form-input parse-result-textarea" readonly rows="4" placeholder="解析结果将在此显示…"></textarea>
+                <button class="btn btn-secondary" data-action="copy-result" title="复制结果">复制</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="tool-footer">
+      <p>二维码生成使用 qrcode-generator，解析使用 jsQR，均在浏览器本地运行</p>
+    </footer>
+  </div>
+
+  <script src="../../assets/js/qrcode-generator.min.js"></script>
+  <script src="../../assets/js/jsQR.min.js"></script>
+  <script src="../../assets/js/utils.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
