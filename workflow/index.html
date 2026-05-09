@@ -27,30 +27,39 @@
       <!-- 中央画布 -->
       <div class="workflow-canvas-wrapper">
         <div class="workflow-toolbar">
-          <div class="toolbar-group">
-            <button class="btn btn-primary" data-action="run">运行</button>
-            <button class="btn btn-secondary" data-action="clear">清空画布</button>
+          <!-- 第一行：主操作 + 自动执行 -->
+          <div class="toolbar-row toolbar-row-primary">
+            <div class="toolbar-group">
+              <button class="btn btn-primary" data-action="run">运行</button>
+              <button class="btn btn-secondary" data-action="clear">清空画布</button>
+            </div>
+            <div class="toolbar-group auto-run-group">
+              <label class="auto-run-toggle" title="启用/停止自动执行">
+                <input type="checkbox" id="auto-run-toggle">
+                <span class="auto-run-label">自动执行</span>
+              </label>
+              <select id="auto-run-mode" class="auto-run-select">
+                <option value="interval">间隔</option>
+                <option value="cron">Cron</option>
+              </select>
+              <input type="text" id="auto-run-expr" class="auto-run-input" placeholder="5" value="5">
+              <span id="auto-run-countdown" class="auto-run-countdown">已停止</span>
+            </div>
           </div>
-          <div class="toolbar-group">
-            <select class="workflow-saved-select" id="workflow-saved-select">
-              <option value="">已保存的工作流…</option>
-            </select>
-            <button class="btn btn-sm btn-secondary" data-action="save-local">存到本地</button>
-            <button class="btn btn-sm btn-secondary" data-action="delete-local">删除</button>
-            <button class="btn btn-sm btn-secondary" data-action="save">导出文件</button>
-            <button class="btn btn-sm btn-secondary" data-action="load">导入文件</button>
-          </div>
-          <div class="toolbar-group auto-run-group">
-            <label class="auto-run-toggle" title="启用/停止自动执行">
-              <input type="checkbox" id="auto-run-toggle">
-              <span class="auto-run-label">自动执行</span>
-            </label>
-            <select id="auto-run-mode" class="workflow-saved-select" style="min-width:70px;max-width:90px;">
-              <option value="interval">间隔</option>
-              <option value="cron">Cron</option>
-            </select>
-            <input type="text" id="auto-run-expr" class="workflow-saved-select" style="min-width:80px;max-width:110px;" placeholder="5" value="5">
-            <span id="auto-run-countdown" class="auto-run-countdown">已停止</span>
+
+          <!-- 第二行：工作流管理 -->
+          <div class="toolbar-row toolbar-row-secondary">
+            <div class="toolbar-group">
+              <select class="workflow-saved-select" id="workflow-saved-select">
+                <option value="">已保存的工作流…</option>
+              </select>
+              <button class="btn btn-sm btn-secondary" data-action="save-local">保存</button>
+              <button class="btn btn-sm btn-secondary" data-action="delete-local">删除</button>
+            </div>
+            <div class="toolbar-group">
+              <button class="btn btn-sm btn-secondary" data-action="save">导出</button>
+              <button class="btn btn-sm btn-secondary" data-action="load">导入</button>
+            </div>
           </div>
         </div>
 
