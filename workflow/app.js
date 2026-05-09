@@ -379,7 +379,7 @@
   function getPortY(portIndex, nodeId) {
     const div = nodeId ? document.getElementById(nodeId) : null;
     if (div) {
-      const isExpanded = div.classList.contains('is-selected') || div.classList.contains('is-connecting');
+      const isExpanded = div.classList.contains('is-selected') || div.classList.contains('is-connecting') || div.classList.contains('is-hovered');
       if (!isExpanded) {
         return NODE_HEADER_H / 2;
       }
@@ -439,8 +439,14 @@
     });
 
     // hover 展开/收起时重新渲染连线
-    div.addEventListener('mouseenter', () => renderEdges());
-    div.addEventListener('mouseleave', () => renderEdges());
+    div.addEventListener('mouseenter', () => {
+      div.classList.add('is-hovered');
+      renderEdges();
+    });
+    div.addEventListener('mouseleave', () => {
+      div.classList.remove('is-hovered');
+      renderEdges();
+    });
 
     // 端口 mousedown 开始连线
     div.querySelectorAll('.workflow-port').forEach(port => {
