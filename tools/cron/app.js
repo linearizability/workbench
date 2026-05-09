@@ -29,6 +29,7 @@
     el.genNextRuns   = document.getElementById('gen-next-runs');
 
     // 字段显示
+    el.fSec  = document.getElementById('f-sec');
     el.fMin  = document.getElementById('f-min');
     el.fHour = document.getElementById('f-hour');
     el.fDom  = document.getElementById('f-dom');
@@ -36,6 +37,7 @@
     el.fDow  = document.getElementById('f-dow');
 
     // 生成器输入框
+    el.genSec  = document.getElementById('gen-sec');
     el.genMin  = document.getElementById('gen-min');
     el.genHour = document.getElementById('gen-hour');
     el.genDom  = document.getElementById('gen-dom');
@@ -63,7 +65,7 @@
     el.parseInput.addEventListener('input', debounce(doParse, 200));
 
     // 生成器输入框变化
-    [el.genMin, el.genHour, el.genDom, el.genMon, el.genDow].forEach(input => {
+    [el.genSec, el.genMin, el.genHour, el.genDom, el.genMon, el.genDow].forEach(input => {
       input.addEventListener('input', debounce(updateGenerate, 150));
     });
 
@@ -111,7 +113,15 @@
 
     // 字段分解
     const parts = expr.split(/\s+/);
-    if (parts.length >= 5) {
+    if (parts.length >= 6) {
+      el.fSec.textContent  = parts[0];
+      el.fMin.textContent  = parts[1];
+      el.fHour.textContent = parts[2];
+      el.fDom.textContent  = parts[3];
+      el.fMon.textContent  = parts[4];
+      el.fDow.textContent  = parts[5];
+    } else if (parts.length >= 5) {
+      el.fSec.textContent  = '0';
       el.fMin.textContent  = parts[0];
       el.fHour.textContent = parts[1];
       el.fDom.textContent  = parts[2];
@@ -123,7 +133,8 @@
     let desc = '';
     try {
       if (typeof cronstrue !== 'undefined' && cronstrue.toString) {
-        desc = cronstrue.toString(expr, { locale: 'zh_CN', use24HourTimeFormat: true });
+        const useSeconds = parts.length >= 6;
+        desc = cronstrue.toString(expr, { locale: 'zh_CN', use24HourTimeFormat: true, useSeconds });
       } else {
         desc = 'cronstrue 库未加载';
       }
@@ -139,12 +150,12 @@
 
   // ── 生成 ──
   function updateGenerate() {
-    const expr = `${el.genMin.value || '*'} ${el.genHour.value || '*'} ${el.genDom.value || '*'} ${el.genMon.value || '*'} ${el.genDow.value || '*'}`;
+    const expr = `${el.genSec.value || '0'} ${el.genMin.value || '*'} ${el.genHour.value || '*'} ${el.genDom.value || '*'} ${el.genMon.value || '*'} ${el.genDow.value || '*'}`;
     el.genExpr.textContent = expr;
 
     try {
       if (typeof cronstrue !== 'undefined' && cronstrue.toString) {
-        el.genDesc.textContent = cronstrue.toString(expr, { locale: 'zh_CN', use24HourTimeFormat: true });
+        el.genDesc.textContent = cronstrue.toString(expr, { locale: 'zh_CN', use24HourTimeFormat: true, useSeconds: true });
       } else {
         el.genDesc.textContent = '-';
       }
@@ -179,6 +190,7 @@
   }
 
   function resetFields() {
+    el.fSec.textContent  = '-';
     el.fMin.textContent  = '-';
     el.fHour.textContent = '-';
     el.fDom.textContent  = '-';
@@ -223,6 +235,7 @@
   }
 
   function doResetGen() {
+    el.genSec.value  = '0';
     el.genMin.value  = '0';
     el.genHour.value = '*';
     el.genDom.value  = '*';

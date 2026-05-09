@@ -20,21 +20,23 @@
           return { output: null, error: '请输入 Cron 表达式' };
         }
 
-        // 字段分解
+        // 字段分解（支持 5 字段和 6 字段格式）
         const parts = expression.split(/\s+/);
+        const hasSeconds = parts.length >= 6;
         const fields = {
-          minute: parts[0] || '*',
-          hour: parts[1] || '*',
-          dayOfMonth: parts[2] || '*',
-          month: parts[3] || '*',
-          dayOfWeek: parts[4] || '*'
+          second: hasSeconds ? (parts[0] || '*') : '0',
+          minute: hasSeconds ? (parts[1] || '*') : (parts[0] || '*'),
+          hour: hasSeconds ? (parts[2] || '*') : (parts[1] || '*'),
+          dayOfMonth: hasSeconds ? (parts[3] || '*') : (parts[2] || '*'),
+          month: hasSeconds ? (parts[4] || '*') : (parts[3] || '*'),
+          dayOfWeek: hasSeconds ? (parts[5] || '*') : (parts[4] || '*')
         };
 
         // 自然语言描述
         let description = '';
         try {
           if (typeof cronstrue !== 'undefined' && cronstrue.toString) {
-            description = cronstrue.toString(expression, { locale: 'zh_CN', use24HourTimeFormat: true });
+            description = cronstrue.toString(expression, { locale: 'zh_CN', use24HourTimeFormat: true, useSeconds: hasSeconds });
           } else {
             return { output: null, error: 'cronstrue 库未加载' };
           }
@@ -71,18 +73,19 @@
           error: null
         };
       } else {
-        // generate 模式：从字段构建表达式
+        // generate 模式：从字段构建表达式（6 字段含秒）
+        const second = input.second ?? '0';
         const minute = input.minute ?? '*';
         const hour = input.hour ?? '*';
         const dayOfMonth = input.dayOfMonth ?? '*';
         const month = input.month ?? '*';
         const dayOfWeek = input.dayOfWeek ?? '*';
-        const expression = `${minute} ${hour} ${dayOfMonth} ${month} ${dayOfWeek}`;
+        const expression = `${second} ${minute} ${hour} ${dayOfMonth} ${month} ${dayOfWeek}`;
 
         let description = '';
         try {
           if (typeof cronstrue !== 'undefined' && cronstrue.toString) {
-            description = cronstrue.toString(expression, { locale: 'zh_CN', use24HourTimeFormat: true });
+            description = cronstrue.toString(expression, { locale: 'zh_CN', use24HourTimeFormat: true, useSeconds: true });
           }
         } catch {
           description = '无效的表达式';
