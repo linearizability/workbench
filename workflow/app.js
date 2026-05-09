@@ -438,6 +438,10 @@
       state.dragging = { id: node.id, startX: e.clientX, startY: e.clientY, origX: node.x, origY: node.y };
     });
 
+    // hover 展开/收起时重新渲染连线
+    div.addEventListener('mouseenter', () => renderEdges());
+    div.addEventListener('mouseleave', () => renderEdges());
+
     // 端口 mousedown 开始连线
     div.querySelectorAll('.workflow-port').forEach(port => {
       port.addEventListener('mousedown', (e) => {
