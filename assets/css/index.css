@@ -144,8 +144,8 @@ body {
 }
 
 .menu-item.is-active {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.35);
+  background: var(--color-primary-fade-12);
+  border-color: var(--color-primary-fade-35);
   color: var(--color-primary);
 }
 

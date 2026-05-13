@@ -222,7 +222,7 @@
 .http-cors-tip {
   margin: var(--spacing-md);
   padding: var(--spacing-md);
-  background: rgba(245, 158, 11, 0.08);
+  background: var(--color-warning-fade-8);
   border: 1px solid var(--color-warning);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);

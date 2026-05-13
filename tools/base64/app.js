@@ -68,21 +68,7 @@
     el.urlSafe.addEventListener('change', doConvert);
 
     // 拖拽文件
-    el.inputDropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      el.inputDropZone.classList.add('is-dragover');
-    });
-    el.inputDropZone.addEventListener('dragleave', (e) => {
-      if (!el.inputDropZone.contains(e.relatedTarget)) {
-        el.inputDropZone.classList.remove('is-dragover');
-      }
-    });
-    el.inputDropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      el.inputDropZone.classList.remove('is-dragover');
-      const file = e.dataTransfer.files && e.dataTransfer.files[0];
-      if (file) handleFileDrop(file);
-    });
+    setupFileDropzone(el.inputDropZone, handleFileDrop);
     el.fileInput.addEventListener('change', (e) => {
       const file = e.target.files && e.target.files[0];
       if (file) handleFileDrop(file);

@@ -137,7 +137,7 @@
 .file-drop-zone:hover,
 .file-drop-zone.is-dragover {
   border-color: var(--color-primary);
-  background: rgba(59, 130, 246, 0.06);
+  background: var(--color-primary-fade-6);
 }
 
 .file-drop-zone-content {
@@ -204,15 +204,15 @@
 }
 
 .result-badge-url {
-  background: rgba(59, 130, 246, 0.12);
+  background: var(--color-primary-fade-12);
   color: var(--color-primary);
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  border: 1px solid var(--color-primary-fade-25);
 }
 
 .result-badge-text {
-  background: rgba(34, 197, 94, 0.12);
+  background: var(--color-success-fade-12);
   color: var(--color-success);
-  border: 1px solid rgba(34, 197, 94, 0.25);
+  border: 1px solid var(--color-success-fade-25);
 }
 
 @media (max-width: 768px) {

@@ -77,26 +77,7 @@
     elements.fileInput.addEventListener('change', handleFileSelect);
 
     // 拖放支持
-    elements.editorDropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      elements.editorDropZone.classList.add('is-dragover');
-    });
-
-    elements.editorDropZone.addEventListener('dragleave', (e) => {
-      // 仅在真正离开容器时移除
-      if (!elements.editorDropZone.contains(e.relatedTarget)) {
-        elements.editorDropZone.classList.remove('is-dragover');
-      }
-    });
-
-    elements.editorDropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      elements.editorDropZone.classList.remove('is-dragover');
-      const file = e.dataTransfer.files && e.dataTransfer.files[0];
-      if (file) {
-        readFileContent(file);
-      }
-    });
+    setupFileDropzone(elements.editorDropZone, readFileContent);
   }
 
   /**
@@ -430,6 +411,28 @@
     }
   }
 
+  // 转义 / 反转义（不需要输入为合法 JSON）
+  async function runEscapeAction(action) {
+    const input = elements.inputEditor.value;
+    if (!input) {
+      showToast('请输入内容', 'warning');
+      return;
+    }
+    const result = await window.TOOL_JSON_CORE.run({
+      input: { text: input },
+      params: { action, indent: elements.indentSelect.value }
+    });
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+    elements.outputEditor.textContent = result.output.text;
+    state.formattedOutput = result.output.text;
+    updateOutputInfo(result.output.text);
+    showToast(action === 'escape' ? '转义成功' : '反转义成功', 'success');
+    saveHistory();
+  }
+
   // 动作处理器
   const ACTIONS = {
     // 格式化
@@ -462,6 +465,10 @@
     // 转 CSV
     async toCsv() { await runCore('toCsv'); },
     async 'to-csv'() { await runCore('toCsv'); },
+
+    // 转义 / 反转义
+    async escape() { await runEscapeAction('escape'); },
+    async unescape() { await runEscapeAction('unescape'); },
 
     // 复制结果
     copy() {

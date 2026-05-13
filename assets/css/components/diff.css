@@ -1,0 +1,84 @@
+/* Diff component - 文本差异展示 */
+
+.diff-line-list {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+}
+
+.diff-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+  padding: 0 var(--spacing-md);
+}
+
+.diff-line:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.diff-line-num {
+  display: inline-block;
+  min-width: 2.5rem;
+  text-align: right;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  user-select: none;
+}
+
+.diff-line-marker {
+  display: inline-block;
+  min-width: 1rem;
+  text-align: center;
+  user-select: none;
+  font-weight: 600;
+}
+
+.diff-line-text {
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.diff-line.diff-added {
+  background: var(--color-success-fade-8);
+}
+
+.diff-line.diff-added .diff-line-marker {
+  color: var(--color-success);
+}
+
+.diff-line.diff-removed {
+  background: var(--color-danger-fade-8);
+}
+
+.diff-line.diff-removed .diff-line-marker {
+  color: var(--color-danger);
+}
+
+.diff-inline {
+  margin: 0;
+  padding: var(--spacing-md);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--color-text);
+}
+
+.diff-ins {
+  background: var(--color-success-fade-20);
+  color: var(--color-success);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  padding: 0 0.125rem;
+}
+
+.diff-del {
+  background: var(--color-danger-fade-20);
+  color: var(--color-danger);
+  text-decoration: line-through;
+  border-radius: var(--radius-sm);
+  padding: 0 0.125rem;
+}

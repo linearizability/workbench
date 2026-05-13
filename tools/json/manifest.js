@@ -31,7 +31,7 @@
         name: 'action',
         type: 'select',
         label: '操作',
-        options: ['format', 'compress', 'validate', 'sortKeys', 'toXml', 'toYaml', 'toCsv'],
+        options: ['format', 'compress', 'validate', 'sortKeys', 'toXml', 'toYaml', 'toCsv', 'escape', 'unescape'],
         default: 'format'
       },
       {

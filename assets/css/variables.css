@@ -11,6 +11,38 @@
   --color-danger: #ef4444;
   --color-info: #06b6d4;
 
+  /* 主色调透明度变体 */
+  --color-primary-fade-5: rgba(59, 130, 246, 0.05);
+  --color-primary-fade-6: rgba(59, 130, 246, 0.06);
+  --color-primary-fade-8: rgba(59, 130, 246, 0.08);
+  --color-primary-fade-10: rgba(59, 130, 246, 0.10);
+  --color-primary-fade-12: rgba(59, 130, 246, 0.12);
+  --color-primary-fade-15: rgba(59, 130, 246, 0.15);
+  --color-primary-fade-25: rgba(59, 130, 246, 0.25);
+  --color-primary-fade-35: rgba(59, 130, 246, 0.35);
+
+  /* 成功绿透明度变体 */
+  --color-success-fade-5: rgba(34, 197, 94, 0.05);
+  --color-success-fade-8: rgba(34, 197, 94, 0.08);
+  --color-success-fade-10: rgba(34, 197, 94, 0.10);
+  --color-success-fade-12: rgba(34, 197, 94, 0.12);
+  --color-success-fade-20: rgba(34, 197, 94, 0.20);
+  --color-success-fade-25: rgba(34, 197, 94, 0.25);
+
+  /* 危险红透明度变体 */
+  --color-danger-fade-5: rgba(239, 68, 68, 0.05);
+  --color-danger-fade-8: rgba(239, 68, 68, 0.08);
+  --color-danger-fade-10: rgba(239, 68, 68, 0.10);
+  --color-danger-fade-20: rgba(239, 68, 68, 0.20);
+
+  /* 警告黄透明度变体 */
+  --color-warning-fade-8: rgba(245, 158, 11, 0.08);
+  --color-warning-fade-12: rgba(245, 158, 11, 0.12);
+  --color-warning-fade-45: rgba(245, 158, 11, 0.45);
+
+  /* 遮罩层 */
+  --color-backdrop: rgba(0, 0, 0, 0.5);
+
   --color-bg: #ffffff;
   --color-bg-secondary: #f8fafc;
   --color-bg-tertiary: #f1f5f9;
@@ -51,6 +83,7 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  --shadow-focus: 0 0 0 3px var(--color-primary-fade-15);
 
   /* 过渡动画 */
   --transition-fast: 150ms ease;

@@ -37,6 +37,25 @@
         return { output: { text: '', parsed: null }, error: null };
       }
 
+      // 转义/反转义不需要 JSON.parse
+      if (action === 'escape') {
+        const escaped = JSON.stringify(text);
+        return { output: { text: escaped, parsed: escaped }, error: null };
+      }
+      if (action === 'unescape') {
+        let toParse = text.trim();
+        if (!(toParse.startsWith('"') && toParse.endsWith('"'))) {
+          toParse = `"${toParse}"`;
+        }
+        try {
+          const unescaped = JSON.parse(toParse);
+          const result = typeof unescaped === 'string' ? unescaped : JSON.stringify(unescaped, null, 2);
+          return { output: { text: result, parsed: unescaped }, error: null };
+        } catch (err) {
+          return { output: null, error: '反转义失败: ' + err.message };
+        }
+      }
+
       try {
         const parsed = JSON.parse(text);
 

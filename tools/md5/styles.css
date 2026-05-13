@@ -1,21 +1,21 @@
 /* MD5 计算 - 工具差异样式 */
 
 .md5-section {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--spacing-md);
 }
 
 .md5-label {
     display: block;
-    margin-bottom: 0.5rem;
-    font-size: 0.875rem;
+    margin-bottom: var(--spacing-sm);
+    font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--color-text-secondary);
 }
 
 .md5-input {
     width: 100%;
-    padding: 0.75rem 1rem;
-    font-size: 0.9375rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-base);
     line-height: 1.6;
     color: var(--color-text);
     background: var(--color-bg);
@@ -28,19 +28,19 @@
 .md5-input:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    box-shadow: var(--shadow-focus);
 }
 
 .md5-output-wrap {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--spacing-sm);
     align-items: center;
 }
 
 .md5-output {
     flex: 1;
-    padding: 0.75rem 1rem;
-    font-size: 0.9375rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-base);
     font-family: var(--font-family-mono);
     color: var(--color-text);
     background: var(--color-bg-secondary);
@@ -52,20 +52,20 @@
 .md5-output:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    box-shadow: var(--shadow-focus);
 }
 
 .md5-options {
     display: flex;
     justify-content: flex-end;
-    margin-top: -0.5rem;
+    margin-top: calc(var(--spacing-sm) * -1);
 }
 
 .md5-option {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    font-size: 0.875rem;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
     cursor: pointer;
     user-select: none;
@@ -80,8 +80,8 @@
 .md5-divider {
     display: flex;
     align-items: center;
-    margin: 1.5rem 0;
-    font-size: 0.875rem;
+    margin: var(--spacing-xl) 0;
+    font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
 }
 
@@ -94,16 +94,16 @@
 }
 
 .md5-divider::before {
-    margin-right: 0.75rem;
+    margin-right: var(--spacing-sm);
 }
 
 .md5-divider::after {
-    margin-left: 0.75rem;
+    margin-left: var(--spacing-sm);
 }
 
 .file-drop-zone {
     position: relative;
-    padding: 1.5rem;
+    padding: var(--spacing-xl);
     text-align: center;
     background: var(--color-bg-secondary);
     border: 2px dashed var(--color-border);
@@ -113,7 +113,7 @@
 }
 
 .file-drop-zone.is-dragover {
-    background: rgba(59, 130, 246, 0.05);
+    background: var(--color-primary-fade-5);
     border-color: var(--color-primary);
 }
 
@@ -128,13 +128,13 @@
 
 .file-drop-icon {
     display: block;
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--spacing-sm);
 }
 
 .file-drop-hint p {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
 }
 
@@ -144,21 +144,21 @@
 }
 
 .file-size-hint {
-    margin-top: 0.25rem !important;
-    font-size: 0.75rem !important;
+    margin-top: var(--spacing-xs) !important;
+    font-size: var(--font-size-xs) !important;
     color: var(--color-text-muted) !important;
 }
 
 .file-progress {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    margin-top: 0.75rem;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
 }
 
 .file-progress-track {
     flex: 1;
-    height: 0.5rem;
+    height: var(--spacing-xs);
     background: var(--color-border);
     border-radius: 9999px;
     overflow: hidden;
@@ -173,7 +173,7 @@
 }
 
 .file-progress-text {
-    font-size: 0.75rem;
+    font-size: var(--font-size-xs);
     font-variant-numeric: tabular-nums;
     color: var(--color-text-secondary);
     min-width: 2.5rem;
@@ -181,8 +181,8 @@
 }
 
 .file-info {
-    margin-top: 0.5rem;
-    font-size: 0.875rem;
+    margin-top: var(--spacing-sm);
+    font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
     word-break: break-all;
 }

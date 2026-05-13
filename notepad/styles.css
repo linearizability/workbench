@@ -117,13 +117,13 @@
 /* ── 危险图标按钮 ── */
 .btn-icon-danger:hover {
   color: var(--color-danger);
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--color-danger-fade-8);
 }
 
 /* ── 置顶图标按钮 ── */
 .btn-icon-pin:hover {
   color: var(--color-warning);
-  background: rgba(245, 158, 11, 0.08);
+  background: var(--color-warning-fade-8);
 }
 
 .btn-icon-pin.is-active {

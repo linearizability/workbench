@@ -116,7 +116,8 @@
     setActiveNav(key);
 
     // 当切到工具箱内的子工具时，自动展开工具箱
-    const toolboxKeys = ['json','file-generator','image-generator','properties-yaml','svg-editor','md5','base64','qrcode','timestamp','cron','url','jwt','uuid','regex','diff','json-to-struct','http-request'];
+    const ROOT_LEVEL_MODULES = new Set(['links', 'notepad', 'workflow']);
+    const toolboxKeys = Object.keys(ROUTES).filter(k => !ROOT_LEVEL_MODULES.has(k));
     if (toolboxKeys.includes(key) && elements.toolboxGroup && elements.toolboxToggle) {
       elements.toolboxGroup.classList.remove('is-collapsed');
       elements.toolboxToggle.setAttribute('aria-expanded', 'true');

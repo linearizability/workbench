@@ -266,7 +266,7 @@
 }
 
 .workflow-node.is-selected {
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  box-shadow: var(--shadow-focus);
 }
 
 /* hover 或选中时展开端口区 */
@@ -317,12 +317,12 @@
 
 .workflow-node-status.is-success {
   color: var(--color-success);
-  background: rgba(34, 197, 94, 0.1);
+  background: var(--color-success-fade-10);
 }
 
 .workflow-node-status.is-error {
   color: var(--color-danger);
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--color-danger-fade-10);
 }
 
 /* ── 端口区（收起时隐藏，展开时显示） ── */
@@ -507,8 +507,8 @@
   padding: var(--spacing-sm);
   font-size: var(--font-size-xs);
   color: var(--color-danger);
-  background: rgba(239, 68, 68, 0.05);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--color-danger-fade-5);
+  border: 1px solid var(--color-danger-fade-20);
   border-radius: var(--radius-sm);
   word-break: break-all;
 }
@@ -522,7 +522,7 @@
 
 .workflow-prop-port.is-connected {
   color: var(--color-success);
-  background: rgba(34, 197, 94, 0.08);
+  background: var(--color-success-fade-8);
 }
 
 /* ── 底部双栏面板 ── */
@@ -584,12 +584,12 @@
 
 .workflow-log-item.is-success {
   color: var(--color-success);
-  background: rgba(34, 197, 94, 0.05);
+  background: var(--color-success-fade-5);
 }
 
 .workflow-log-item.is-error {
   color: var(--color-danger);
-  background: rgba(239, 68, 68, 0.05);
+  background: var(--color-danger-fade-5);
 }
 
 /* ── 工具栏下拉列表 ── */
@@ -682,12 +682,12 @@
 
 .workflow-result-item-status.is-success {
   color: var(--color-success);
-  background: rgba(34, 197, 94, 0.08);
+  background: var(--color-success-fade-8);
 }
 
 .workflow-result-item-status.is-error {
   color: var(--color-danger);
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--color-danger-fade-8);
 }
 
 .workflow-result-item-body {
@@ -710,61 +710,4 @@
 .workflow-result-stats .is-error   { color: var(--color-danger); font-weight: 600; }
 .workflow-result-stats .is-warning { color: var(--color-warning); font-weight: 600; }
 
-/* ── Diff 行级差异（结果面板内） ── */
-.workflow-result-item-body .diff-line-list {
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-xs);
-  line-height: 1.6;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.workflow-result-item-body .diff-line {
-  display: flex;
-  align-items: baseline;
-  gap: var(--spacing-sm);
-  padding: 0.125rem var(--spacing-sm);
-}
-
-.workflow-result-item-body .diff-line:hover {
-  background: var(--color-bg-tertiary);
-}
-
-.workflow-result-item-body .diff-line-num {
-  display: inline-block;
-  min-width: 2rem;
-  text-align: right;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  user-select: none;
-}
-
-.workflow-result-item-body .diff-line-marker {
-  display: inline-block;
-  min-width: 0.875rem;
-  text-align: center;
-  user-select: none;
-  font-weight: 600;
-}
-
-.workflow-result-item-body .diff-line-text {
-  flex: 1;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.workflow-result-item-body .diff-line.diff-added {
-  background: rgba(34, 197, 94, 0.08);
-}
-
-.workflow-result-item-body .diff-line.diff-added .diff-line-marker {
-  color: var(--color-success);
-}
-
-.workflow-result-item-body .diff-line.diff-removed {
-  background: rgba(239, 68, 68, 0.08);
-}
-
-.workflow-result-item-body .diff-line.diff-removed .diff-line-marker {
-  color: var(--color-danger);
-}
+/* diff 行级差异样式已抽取到 assets/css/components/diff.css */

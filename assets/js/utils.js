@@ -243,6 +243,40 @@
   };
 
   /**
+   * 为元素设置文件拖放支持
+   * @param {HTMLElement} zone - 拖放区域元素
+   * @param {Function} onDrop - 文件拖放回调 (file) => void
+   * @param {Object} options - 配置
+   */
+  window.setupFileDropzone = function setupFileDropzone(zone, onDrop, options = {}) {
+    if (!zone || typeof onDrop !== 'function') return;
+    const { maxSize = 10 * 1024 * 1024 } = options;
+
+    zone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      zone.classList.add('is-dragover');
+    });
+
+    zone.addEventListener('dragleave', (e) => {
+      if (!zone.contains(e.relatedTarget)) {
+        zone.classList.remove('is-dragover');
+      }
+    });
+
+    zone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      zone.classList.remove('is-dragover');
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!file) return;
+      if (file.size > maxSize) {
+        showToast(`文件过大，请选择 ${Math.round(maxSize / 1024 / 1024)}MB 以内的文件`, 'warning');
+        return;
+      }
+      onDrop(file);
+    });
+  };
+
+  /**
    * 下载文件
    * @param {string} content - 文件内容
    * @param {string} filename - 文件名

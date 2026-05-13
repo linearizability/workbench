@@ -59,19 +59,7 @@
         }
 
         if (elements.fileDropZone) {
-            elements.fileDropZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                elements.fileDropZone.classList.add('is-dragover');
-            });
-            elements.fileDropZone.addEventListener('dragleave', () => {
-                elements.fileDropZone.classList.remove('is-dragover');
-            });
-            elements.fileDropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                elements.fileDropZone.classList.remove('is-dragover');
-                const file = e.dataTransfer.files[0];
-                if (file) handleFileSelect(file);
-            });
+            setupFileDropzone(elements.fileDropZone, handleFileSelect);
         }
     }
 

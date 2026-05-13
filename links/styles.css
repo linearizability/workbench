@@ -168,11 +168,11 @@
 
 .link-action.delete:hover {
   color: var(--color-danger);
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--color-danger-fade-10);
 }
 
 .link-item.is-pinned {
-  border-color: rgba(245, 158, 11, 0.45);
+  border-color: var(--color-warning-fade-45);
 }
 
 .link-item.is-dragging {
@@ -182,7 +182,7 @@
 
 .link-action.pin:hover {
   color: var(--color-warning);
-  background: rgba(245, 158, 11, 0.12);
+  background: var(--color-warning-fade-12);
 }
 
 .link-action.drag:hover {
@@ -207,8 +207,8 @@
 }
 
 .import-tab.is-active {
-  border-color: rgba(59, 130, 246, 0.35);
-  background: rgba(59, 130, 246, 0.12);
+  border-color: var(--color-primary-fade-35);
+  background: var(--color-primary-fade-12);
 }
 
 .import-textarea {

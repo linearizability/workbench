@@ -37,7 +37,7 @@
   display: inline-block;
   font-size: var(--font-size-xs);
   color: var(--color-primary);
-  background: rgba(59, 130, 246, 0.1);
+  background: var(--color-primary-fade-10);
   padding: 0.125rem 0.5rem;
   border-radius: var(--radius-sm);
 }

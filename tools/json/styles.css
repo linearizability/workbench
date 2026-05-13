@@ -111,58 +111,6 @@
 
 /* 响应式调整 */
 
-/* 拖放区与覆盖层 */
-.editor-drop-zone {
-  position: relative;
-}
-
-.drop-overlay {
-  display: none;
-  position: absolute;
-  inset: 0;
-  z-index: 10;
-  background: rgba(59, 130, 246, 0.08);
-  border: 2px dashed var(--color-primary);
-  border-radius: var(--radius-md);
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-sm);
-  color: var(--color-primary);
-  font-weight: 500;
-  pointer-events: none;
-}
-
-.editor-drop-zone.is-dragover .drop-overlay {
-  display: flex;
-}
-
-.drop-overlay-icon {
-  width: 36px;
-  height: 36px;
-}
-
-.editor-header {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.editor-header .editor-title {
-  flex: 1;
-}
-
-.editor-header .editor-info {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  white-space: nowrap;
-}
-
-.btn-sm {
-  padding: 0.125rem 0.5rem;
-  font-size: var(--font-size-xs);
-}
-
 @media (max-width: 640px) {
   .toolbar-group {
     width: 100%;
