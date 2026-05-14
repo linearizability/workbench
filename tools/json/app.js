@@ -397,11 +397,11 @@
     }
     if (action === 'validate') {
       showToast(result.output.text, 'success');
-    } else if (action === 'compress') {
+    } else if (action === 'compress' || action === 'compressEscape') {
       elements.outputEditor.textContent = result.output.text;
       state.formattedOutput = result.output.text;
       updateOutputInfo(result.output.text);
-      showToast('压缩成功', 'success');
+      showToast(action === 'compress' ? '压缩成功' : '压缩并转义成功', 'success');
       saveHistory();
     } else {
       displayOutput(result.output.parsed);
@@ -466,9 +466,10 @@
     async toCsv() { await runCore('toCsv'); },
     async 'to-csv'() { await runCore('toCsv'); },
 
-    // 转义 / 反转义
+    // 转义 / 反转义 / 压缩并转义
     async escape() { await runEscapeAction('escape'); },
     async unescape() { await runEscapeAction('unescape'); },
+    async 'compress-escape'() { await runCore('compressEscape'); },
 
     // 复制结果
     copy() {

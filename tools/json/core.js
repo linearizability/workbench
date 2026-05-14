@@ -69,6 +69,11 @@
             const result = JSON.stringify(parsed);
             return { output: { text: result, parsed }, error: null };
           }
+          case 'compressEscape': {
+            const compressed = JSON.stringify(parsed);
+            const escaped = JSON.stringify(compressed);
+            return { output: { text: escaped, parsed: compressed }, error: null };
+          }
           case 'validate': {
             return { output: { text: 'JSON 格式正确', parsed }, error: null };
           }
