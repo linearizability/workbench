@@ -62,15 +62,15 @@
         switch (action) {
           case 'format': {
             const space = INDENT_MAP[indent] || 2;
-            const result = JSON.stringify(parsed, null, space);
+            const result = formatJsonText(text, space);
             return { output: { text: result, parsed }, error: null };
           }
           case 'compress': {
-            const result = JSON.stringify(parsed);
+            const result = compressJsonText(text);
             return { output: { text: result, parsed }, error: null };
           }
           case 'compressEscape': {
-            const compressed = JSON.stringify(parsed);
+            const compressed = compressJsonText(text);
             const escaped = JSON.stringify(compressed);
             return { output: { text: escaped, parsed: compressed }, error: null };
           }
@@ -113,6 +113,103 @@
   };
 
   // ── 内部函数 ──
+
+  function compressJsonText(text) {
+    let result = '';
+    let inString = false;
+    let escapeNext = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+
+      if (escapeNext) {
+        result += char;
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        result += char;
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        result += char;
+        continue;
+      }
+
+      if (inString) {
+        result += char;
+        continue;
+      }
+
+      if (char !== ' ' && char !== '\t' && char !== '\n' && char !== '\r') {
+        result += char;
+      }
+    }
+
+    return result;
+  }
+
+  function formatJsonText(text, space) {
+    const indentStr = typeof space === 'number' ? ' '.repeat(space) : (space || '  ');
+    const compressed = compressJsonText(text);
+    let result = '';
+    let indent = 0;
+    let inString = false;
+    let escapeNext = false;
+
+    for (let i = 0; i < compressed.length; i++) {
+      const char = compressed[i];
+
+      if (escapeNext) {
+        result += char;
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        result += char;
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        result += char;
+        continue;
+      }
+
+      if (inString) {
+        result += char;
+        continue;
+      }
+
+      if (char === '{' || char === '[') {
+        result += char;
+        result += '\n';
+        indent++;
+        result += indentStr.repeat(indent);
+      } else if (char === '}' || char === ']') {
+        result += '\n';
+        indent = Math.max(0, indent - 1);
+        result += indentStr.repeat(indent);
+        result += char;
+      } else if (char === ',') {
+        result += char;
+        result += '\n';
+        result += indentStr.repeat(indent);
+      } else if (char === ':') {
+        result += char + ' ';
+      } else {
+        result += char;
+      }
+    }
+
+    return result;
+  }
 
   function sortObject(obj) {
     if (obj === null || typeof obj !== 'object') return obj;

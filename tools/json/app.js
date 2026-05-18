@@ -226,6 +226,21 @@
   }
 
   /**
+   * 显示文本输出（带高亮）
+   */
+  function displayText(text, language) {
+    state.formattedOutput = text;
+    updateOutputInfo(text);
+
+    if (typeof Prism !== 'undefined' && Prism.languages && Prism.languages[language]) {
+      const highlighted = Prism.highlight(text, Prism.languages[language], language);
+      elements.outputEditor.innerHTML = `<pre><code>${highlighted}</code></pre>`;
+    } else {
+      elements.outputEditor.textContent = text;
+    }
+  }
+
+  /**
    * 清空输出
    */
   function clearOutput() {
@@ -397,18 +412,39 @@
     }
     if (action === 'validate') {
       showToast(result.output.text, 'success');
-    } else if (action === 'compress' || action === 'compressEscape') {
+      return;
+    }
+
+    const textDisplayActions = ['format', 'sortKeys', 'sort-keys', 'toXml', 'to-xml', 'toYaml', 'to-yaml'];
+    const plainTextActions = ['compress', 'compressEscape', 'toCsv', 'to-csv'];
+
+    if (textDisplayActions.includes(action)) {
+      const lang = action.includes('Xml') || action.includes('xml') ? 'xml' :
+                   action.includes('Yaml') || action.includes('yaml') ? 'yaml' :
+                   'json';
+      displayText(result.output.text, lang);
+    } else if (plainTextActions.includes(action)) {
       elements.outputEditor.textContent = result.output.text;
-      state.formattedOutput = result.output.text;
-      updateOutputInfo(result.output.text);
-      showToast(action === 'compress' ? '压缩成功' : '压缩并转义成功', 'success');
-      saveHistory();
     } else {
       displayOutput(result.output.parsed);
-      state.formattedOutput = result.output.text;
-      showToast('处理成功', 'success');
-      saveHistory();
     }
+
+    state.formattedOutput = result.output.text;
+    const toastMap = {
+      format: '格式化成功',
+      sortKeys: '排序成功',
+      'sort-keys': '排序成功',
+      toXml: '转换为 XML 成功',
+      'to-xml': '转换为 XML 成功',
+      toYaml: '转换为 YAML 成功',
+      'to-yaml': '转换为 YAML 成功',
+      toCsv: '转换为 CSV 成功',
+      'to-csv': '转换为 CSV 成功',
+      compress: '压缩成功',
+      compressEscape: '压缩并转义成功'
+    };
+    showToast(toastMap[action] || '处理成功', 'success');
+    saveHistory();
   }
 
   // 转义 / 反转义（不需要输入为合法 JSON）
