@@ -30,7 +30,10 @@
         name: 'mode',
         type: 'select',
         label: '目标语言',
-        options: ['java', 'go'],
+        options: [
+          { value: 'java', label: 'Java' },
+          { value: 'go', label: 'Go' }
+        ],
         default: 'java'
       },
       {

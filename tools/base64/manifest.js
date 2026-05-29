@@ -29,7 +29,10 @@
         name: 'mode',
         type: 'select',
         label: '模式',
-        options: ['encode', 'decode'],
+        options: [
+          { value: 'encode', label: '编码' },
+          { value: 'decode', label: '解码' }
+        ],
         default: 'encode'
       },
       {

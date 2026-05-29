@@ -1,0 +1,225 @@
+/* 密码生成器 - 工具差异样式 */
+
+/* ── 编辑区 ── */
+.pwd-editor-container {
+  min-height: 420px;
+}
+
+/* ── 配置面板 ── */
+.pwd-config-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md);
+}
+
+.pwd-config-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.pwd-config-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.pwd-config-label strong {
+  color: var(--color-primary);
+}
+
+/* ── 滑块 ── */
+.pwd-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-border);
+  outline: none;
+  cursor: pointer;
+}
+
+.pwd-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.pwd-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ── 复选框 ── */
+.pwd-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.pwd-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.pwd-charset-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+}
+
+/* ── 输入框 ── */
+.pwd-input {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family-mono);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.pwd-input:focus {
+  border-color: var(--color-primary);
+}
+
+.pwd-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* ── 数量选项 ── */
+.pwd-config-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.pwd-config-options .btn.is-active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+/* ── 结果列表 ── */
+.pwd-result-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.pwd-result-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.pwd-result-item:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.pwd-result-code {
+  flex: 1;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  word-break: break-all;
+  letter-spacing: 0.02em;
+}
+
+/* ── 强度指示 ── */
+.pwd-strength-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pwd-strength-badge[data-level="weak"] {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.pwd-strength-badge[data-level="fair"] {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.pwd-strength-badge[data-level="good"] {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.pwd-strength-badge[data-level="strong"] {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+/* ── 强度条 ── */
+.pwd-strength-bar-wrap {
+  margin-top: var(--spacing-sm);
+}
+
+.pwd-strength-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.pwd-strength-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.pwd-strength-bar-fill[data-level="weak"] { width: 25%; background: #dc2626; }
+.pwd-strength-bar-fill[data-level="fair"] { width: 50%; background: #d97706; }
+.pwd-strength-bar-fill[data-level="good"] { width: 75%; background: #16a34a; }
+.pwd-strength-bar-fill[data-level="strong"] { width: 100%; background: #059669; }
+
+/* ── 响应式 ── */
+@media (max-width: 768px) {
+  .pwd-editor-container {
+    min-height: 320px;
+  }
+
+  .pwd-charset-options {
+    grid-template-columns: 1fr;
+  }
+
+  .pwd-result-item {
+    padding: var(--spacing-sm);
+  }
+}

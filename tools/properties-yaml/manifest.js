@@ -29,7 +29,10 @@
         name: 'mode',
         type: 'select',
         label: '转换方向',
-        options: ['toYaml', 'toProperties'],
+        options: [
+          { value: 'toYaml', label: '转 YAML' },
+          { value: 'toProperties', label: '转 Properties' }
+        ],
         default: 'toYaml'
       },
       {

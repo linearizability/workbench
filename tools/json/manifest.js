@@ -31,14 +31,29 @@
         name: 'action',
         type: 'select',
         label: '操作',
-        options: ['format', 'compress', 'compressEscape', 'validate', 'sortKeys', 'toXml', 'toYaml', 'toCsv', 'escape', 'unescape'],
+        options: [
+          { value: 'format', label: '格式化' },
+          { value: 'compress', label: '压缩' },
+          { value: 'compressEscape', label: '压缩并转义' },
+          { value: 'validate', label: '验证' },
+          { value: 'sortKeys', label: '排序键名' },
+          { value: 'toXml', label: '转 XML' },
+          { value: 'toYaml', label: '转 YAML' },
+          { value: 'toCsv', label: '转 CSV' },
+          { value: 'escape', label: '转义' },
+          { value: 'unescape', label: '反转义' }
+        ],
         default: 'format'
       },
       {
         name: 'indent',
         type: 'select',
         label: '缩进',
-        options: ['2', '4', 'tab'],
+        options: [
+          { value: '2', label: '2 空格' },
+          { value: '4', label: '4 空格' },
+          { value: 'tab', label: '制表符' }
+        ],
         default: '2',
         visibleWhen: { action: 'format' }
       }

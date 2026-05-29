@@ -65,7 +65,7 @@ tools/<tool-id>/
 └── styles.css        # 工具样式
 ```
 
-**已拆分工具清单**：json, diff, http-request, base64, uuid, md5, url, jwt, timestamp, cron, qrcode, regex, file-generator, image-generator, properties-yaml, svg-editor, json-to-struct
+**已拆分工具清单**：json, diff, http-request, base64, uuid, md5, url, jwt, timestamp, cron, qrcode, regex, file-generator, image-generator, properties-yaml, svg-editor, json-to-struct, password-generator
 
 ## 目录结构
 
@@ -116,6 +116,7 @@ workbench/
 │   ├── properties-yaml/
 │   ├── svg-editor/
 │   └── json-to-struct/
+│   └── password-generator/
 └── ...
 ```
 
@@ -238,6 +239,7 @@ npx serve -l 4173
 - **properties-yaml**：Properties ↔ YAML 双向转换
 - **svg-editor**：SVG 源码编辑与预览（iframe sandbox 隔离）
 - **json-to-struct**：JSON 转多种语言的结构体定义
+- **password-generator**：安全随机密码生成、强度评估、批量生成
 
 ## 代码规范
 

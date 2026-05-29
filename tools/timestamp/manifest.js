@@ -33,14 +33,21 @@
         name: 'mode',
         type: 'select',
         label: '模式',
-        options: ['tsToDate', 'dateToTs'],
+        options: [
+          { value: 'tsToDate', label: '时间戳 → 日期' },
+          { value: 'dateToTs', label: '日期 → 时间戳' }
+        ],
         default: 'tsToDate'
       },
       {
         name: 'unit',
         type: 'select',
         label: '单位（仅 ts→date）',
-        options: ['auto', 'seconds', 'millis'],
+        options: [
+          { value: 'auto', label: '自动' },
+          { value: 'seconds', label: '秒' },
+          { value: 'millis', label: '毫秒' }
+        ],
         default: 'auto',
         visibleWhen: { mode: 'tsToDate' }
       }

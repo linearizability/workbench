@@ -718,7 +718,11 @@
             <div class="workflow-prop-row">
               <label class="workflow-prop-label">${p.label}</label>
               <select class="workflow-prop-input" data-param="${p.name}">
-                ${p.options.map(o => `<option value="${o}" ${o === val ? 'selected' : ''}>${o}</option>`).join('')}
+                ${p.options.map(o => {
+                  const optVal = typeof o === 'object' ? o.value : o;
+                  const optLabel = typeof o === 'object' ? o.label : o;
+                  return `<option value="${optVal}" ${optVal === val ? 'selected' : ''}>${optLabel}</option>`;
+                }).join('')}
               </select>
             </div>`;
         } else {

@@ -32,7 +32,11 @@
         name: 'mode',
         type: 'select',
         label: '模式',
-        options: ['analyze', 'dedupeLines', 'sortLines'],
+        options: [
+          { value: 'analyze', label: '文本分析' },
+          { value: 'dedupeLines', label: '去重行' },
+          { value: 'sortLines', label: '排序行' }
+        ],
         default: 'analyze'
       }
     ],

@@ -38,7 +38,12 @@
         name: 'ecLevel',
         type: 'select',
         label: '纠错级别',
-        options: ['L', 'M', 'Q', 'H'],
+        options: [
+          { value: 'L', label: '低 (L)' },
+          { value: 'M', label: '中 (M)' },
+          { value: 'Q', label: '较高 (Q)' },
+          { value: 'H', label: '高 (H)' }
+        ],
         default: 'M'
       },
       {

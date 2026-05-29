@@ -34,7 +34,11 @@
         name: 'mode',
         type: 'select',
         label: '对比模式',
-        options: ['lines', 'words', 'chars'],
+        options: [
+          { value: 'lines', label: '行级对比' },
+          { value: 'words', label: '词级对比' },
+          { value: 'chars', label: '字符级对比' }
+        ],
         default: 'lines'
       }
     ],

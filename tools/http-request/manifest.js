@@ -35,7 +35,15 @@
         name: 'method',
         type: 'select',
         label: '请求方法',
-        options: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
+        options: [
+          { value: 'GET', label: 'GET' },
+          { value: 'POST', label: 'POST' },
+          { value: 'PUT', label: 'PUT' },
+          { value: 'DELETE', label: 'DELETE' },
+          { value: 'PATCH', label: 'PATCH' },
+          { value: 'HEAD', label: 'HEAD' },
+          { value: 'OPTIONS', label: 'OPTIONS' }
+        ],
         default: 'GET'
       },
       {
@@ -48,7 +56,11 @@
         name: 'bodyType',
         type: 'select',
         label: 'Body 类型',
-        options: ['none', 'raw', 'form'],
+        options: [
+          { value: 'none', label: '无' },
+          { value: 'raw', label: '原始文本' },
+          { value: 'form', label: '表单' }
+        ],
         default: 'none'
       },
       {

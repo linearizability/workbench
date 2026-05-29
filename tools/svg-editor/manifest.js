@@ -30,7 +30,10 @@
         name: 'mode',
         type: 'select',
         label: '模式',
-        options: ['format', 'minify'],
+        options: [
+          { value: 'format', label: '格式化' },
+          { value: 'minify', label: '压缩' }
+        ],
         default: 'format'
       }
     ],

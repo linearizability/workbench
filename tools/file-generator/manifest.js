@@ -33,7 +33,14 @@
         name: 'template',
         type: 'select',
         label: '模板',
-        options: ['blank', 'json-config', 'csv-sample', 'readme', 'gitignore', 'env'],
+        options: [
+          { value: 'blank', label: '空白' },
+          { value: 'json-config', label: 'JSON 配置' },
+          { value: 'csv-sample', label: 'CSV 示例' },
+          { value: 'readme', label: 'README' },
+          { value: 'gitignore', label: '.gitignore' },
+          { value: 'env', label: '.env' }
+        ],
         default: 'blank'
       }
     ],

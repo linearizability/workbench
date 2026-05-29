@@ -38,7 +38,10 @@
         name: 'mode',
         type: 'select',
         label: '模式',
-        options: ['parse', 'generate'],
+        options: [
+          { value: 'parse', label: '解析' },
+          { value: 'generate', label: '生成' }
+        ],
         default: 'parse'
       }
     ],

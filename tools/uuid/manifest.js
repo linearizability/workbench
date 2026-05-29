@@ -36,14 +36,20 @@
         name: 'format',
         type: 'select',
         label: '格式',
-        options: ['standard', 'plain'],
+        options: [
+          { value: 'standard', label: '标准（含连字符）' },
+          { value: 'plain', label: '纯文本（无连字符）' }
+        ],
         default: 'standard'
       },
       {
         name: 'caseType',
         type: 'select',
         label: '大小写',
-        options: ['lower', 'upper'],
+        options: [
+          { value: 'lower', label: '小写' },
+          { value: 'upper', label: '大写' }
+        ],
         default: 'lower'
       }
     ],

@@ -25,6 +25,7 @@
     'diff': './tools/diff/index.html',
     'json-to-struct': './tools/json-to-struct/index.html',
     'http-request': './tools/http-request/index.html',
+    'password-generator': './tools/password-generator/index.html',
     'workflow': './workflow/index.html'
   };
 
