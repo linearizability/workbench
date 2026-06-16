@@ -8,7 +8,7 @@
 
 当前 Workbench 包含 **19 个工具**（17 个在 `tools/` + `links` + `notepad`），全部已完成 `core.js` + `manifest.js` 拆分，可在工作流中串联使用。
 
-已开发工具清单：links, notepad, json, file-generator, image-generator, properties-yaml, svg-editor, md5, base64, qrcode, timestamp, cron, url, jwt, uuid, regex, diff, json-to-struct, http-request
+已开发工具清单：links, notepad, json, file-generator, image-generator, properties-yaml, svg-editor, md5, base64, qrcode, timestamp, cron, url, jwt, uuid, regex, diff, json-to-struct, http-request, password-generator, unicode
 
 **根级独立模块**：`links/` 和 `notepad/` 与 `tools/` 同级，不是工具箱子模块。`TOOL_REGISTRY.loadCore()` 通过 `ROOT_LEVEL_TOOLS` 集合区分加载路径。
 

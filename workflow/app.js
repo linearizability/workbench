@@ -47,7 +47,7 @@
   async function loadToolManifests() {
     const toolIds = ['json', 'diff', 'http-request', 'base64', 'uuid', 'md5', 'url', 'jwt', 'timestamp',
       'cron', 'qrcode', 'regex', 'file-generator', 'image-generator', 'properties-yaml',
-      'svg-editor', 'json-to-struct', 'notepad', 'links'];
+      'svg-editor', 'json-to-struct', 'notepad', 'links', 'password-generator', 'unicode'];
     toolIds.forEach(id => {
       const tool = window.TOOL_REGISTRY.get(id);
       if (tool) TOOL_MANIFESTS.push(tool);
