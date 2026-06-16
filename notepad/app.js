@@ -12,6 +12,7 @@
   let notes = [];
   let editingId = null;   // null = 新增模式, string = 编辑模式
   let deletingId = null;  // 待删除的 id
+  let viewingId = null;    // 正在查看的 id
 
   // ── DOM ──
   const el = {};
@@ -45,6 +46,13 @@
     // 删除确认模态框
     el.modalDelete      = document.getElementById('modal-delete');
     el.btnConfirmDelete = document.getElementById('btn-confirm-delete');
+
+    // 查看模态框
+    el.modalView     = document.getElementById('modal-view');
+    el.viewTitle     = document.getElementById('view-title');
+    el.viewMeta      = document.getElementById('view-meta');
+    el.viewContent   = document.getElementById('view-content');
+    el.btnViewEdit   = document.getElementById('btn-view-edit');
   }
 
   // ── 数据持久化 ──
@@ -184,6 +192,33 @@
     editingId = null;
   }
 
+  function openViewModal(id) {
+    const note = notes.find(n => n.id === id);
+    if (!note) return;
+    viewingId = id;
+    el.viewTitle.textContent = note.title || '无标题';
+
+    let metaHtml = '';
+    if (note.category) {
+      metaHtml += '<span class="notepad-view-category">' + escapeHtml(note.category) + '</span>';
+    }
+    if (note.tags && note.tags.length) {
+      metaHtml += '<span class="notepad-view-tags">' +
+        note.tags.map(t => '<span class="notepad-view-tag">' + escapeHtml(t) + '</span>').join('') +
+        '</span>';
+    }
+    metaHtml += '<span class="notepad-view-time">' + escapeHtml(formatDate(note.updatedAt)) + '</span>';
+    el.viewMeta.innerHTML = metaHtml;
+
+    el.viewContent.textContent = note.content || '';
+    el.modalView.style.display = '';
+  }
+
+  function closeViewModal() {
+    el.modalView.style.display = 'none';
+    viewingId = null;
+  }
+
   function openDeleteModal(id) {
     deletingId = id;
     el.modalDelete.style.display = '';
@@ -298,6 +333,19 @@
       if (action === 'pin') togglePin(id);
       if (action === 'edit') openEditModal(id);
       if (action === 'delete') openDeleteModal(id);
+      if (action === 'view') openViewModal(id);
+    });
+
+    // 卡片标题/内容点击 → 查看详情
+    el.list.addEventListener('click', function(e) {
+      const title = e.target.closest('.notepad-card-title');
+      const body = e.target.closest('.notepad-card-body');
+      const card = (title || body) && (title || body).closest('.notepad-card');
+      if (!card) return;
+      if (title || body) {
+        e.stopPropagation();
+        openViewModal(card.dataset.id);
+      }
     });
 
     // Esc 关闭模态框
@@ -305,7 +353,21 @@
       if (e.key === 'Escape') {
         if (el.modalNote.style.display !== 'none') closeModal();
         if (el.modalDelete.style.display !== 'none') closeDeleteModal();
+        if (el.modalView.style.display !== 'none') closeViewModal();
       }
+    });
+
+    // 查看模态框：关闭 + 编辑
+    el.modalView.addEventListener('click', function(e) {
+      if (e.target.closest('[data-action="close-view"]')) {
+        closeViewModal();
+      }
+    });
+
+    el.btnViewEdit.addEventListener('click', function() {
+      const id = viewingId;
+      closeViewModal();
+      if (id) openEditModal(id);
     });
 
     // Enter 保存（模态框内）

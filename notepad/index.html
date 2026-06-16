@@ -101,6 +101,25 @@
     </div>
   </div>
 
+  <!-- 查看备忘模态框 -->
+  <div id="modal-view" class="modal" style="display:none;">
+    <div class="modal-backdrop" data-action="close-view"></div>
+    <div class="modal-content" style="max-width:640px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="view-title">备忘详情</h2>
+        <button class="btn-icon" data-action="close-view" aria-label="关闭">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="notepad-view-meta" id="view-meta"></div>
+        <div class="notepad-view-content" id="view-content"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-action="close-view">关闭</button>
+        <button class="btn btn-primary" id="btn-view-edit">编辑</button>
+      </div>
+    </div>
+  </div>
+
   <script src="../assets/js/utils.js"></script>
   <script src="app.js"></script>
 </body>

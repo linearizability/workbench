@@ -39,6 +39,11 @@
   color: var(--color-text);
   word-break: break-word;
   line-height: 1.4;
+  cursor: pointer;
+}
+
+.notepad-card-title:hover {
+  color: var(--color-primary);
 }
 
 .notepad-card-actions {
@@ -57,6 +62,11 @@
   word-break: break-word;
   max-height: 160px;
   overflow: hidden;
+  cursor: pointer;
+}
+
+.notepad-card-body:hover {
+  color: var(--color-text);
 }
 
 /* 卡片底部 */
@@ -170,4 +180,60 @@
     flex-direction: column;
     gap: 0;
   }
+}
+
+/* ── 查看模态框 ── */
+.notepad-view-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
+}
+
+.notepad-view-category {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-full);
+  font-weight: 500;
+}
+
+.notepad-view-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.notepad-view-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-full);
+}
+
+.notepad-view-time {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  margin-left: auto;
+}
+
+.notepad-view-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.8;
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  max-height: 50vh;
+  overflow-y: auto;
 }
