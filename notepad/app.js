@@ -27,7 +27,6 @@
   }
 
   function cacheElements() {
-    el.searchInput    = document.getElementById('search-input');
     el.filterCategory = document.getElementById('filter-category');
     el.btnAdd         = document.getElementById('btn-add');
     el.list           = document.getElementById('notepad-list');
@@ -78,17 +77,8 @@
 
   // ── 渲染 ──
   function renderList() {
-    const keyword = el.searchInput.value.trim().toLowerCase();
     const filterCat = el.filterCategory.value;
     let filtered = notes;
-
-    if (keyword) {
-      filtered = filtered.filter(n =>
-        n.title.toLowerCase().includes(keyword) ||
-        n.content.toLowerCase().includes(keyword) ||
-        (n.tags || []).some(t => t.toLowerCase().includes(keyword))
-      );
-    }
 
     if (filterCat) {
       filtered = filtered.filter(n => n.category === filterCat);
@@ -106,7 +96,7 @@
       el.list.innerHTML = '';
       el.emptyState.style.display = '';
       el.emptyState.querySelector('p').textContent =
-        (keyword || filterCat) ? '没有找到匹配的备忘' : '还没有备忘，点击「新增备忘」开始记录';
+        filterCat ? '没有找到匹配的备忘' : '还没有备忘，点击「新增备忘」开始记录';
       return;
     }
 
@@ -280,9 +270,6 @@
 
     // 确认删除
     el.btnConfirmDelete.addEventListener('click', deleteNote);
-
-    // 搜索
-    el.searchInput.addEventListener('input', debounce(renderList, 200));
 
     // 分类过滤
     el.filterCategory.addEventListener('change', renderList);

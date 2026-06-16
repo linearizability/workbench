@@ -22,11 +22,6 @@
   flex: 1;
 }
 
-.filters-search {
-  min-width: 260px;
-  max-width: 520px;
-}
-
 .filters-select {
   min-width: 160px;
   max-width: 260px;

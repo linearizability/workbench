@@ -7,36 +7,14 @@
 
   const STORAGE_KEYS = {
     LINKS: 'tools_home_links',
-    DELETED_DEFAULT_IDS: 'tools_home_deleted_default_link_ids',
     ORDER: 'tools_home_link_order',
     META: 'tools_home_link_meta',
     CATEGORY_ORDER: 'tools_home_category_order'
   };
 
-  // 默认配置 - 在这里维护默认的常用链接
-  const DEFAULT_LINKS = [
-    // 开发工具
-    { id: 'github', name: 'GitHub', url: 'https://github.com', category: '开发工具', icon: '🐙' },
-    { id: 'gitlab', name: 'GitLab', url: 'https://gitlab.com', category: '开发工具', icon: '🦊' },
-    { id: 'stackoverflow', name: 'Stack Overflow', url: 'https://stackoverflow.com', category: '开发工具', icon: '📚' },
-
-    // 文档
-    { id: 'mdn', name: 'MDN Web Docs', url: 'https://developer.mozilla.org', category: '文档', icon: '📖' },
-    { id: 'can-i-use', name: 'Can I Use', url: 'https://caniuse.com', category: '文档', icon: '🔍' },
-
-    // API
-    { id: 'jsonplaceholder', name: 'JSONPlaceholder', url: 'https://jsonplaceholder.typicode.com', category: 'API', icon: '📡' },
-    { id: 'reqres', name: 'ReqRes', url: 'https://reqres.in', category: 'API', icon: '🌐' },
-
-    // 测试工具
-    { id: 'regex101', name: 'Regex101', url: 'https://regex101.com', category: '测试工具', icon: '🔢' },
-    { id: 'cron-expression', name: 'Cron Expression', url: 'https://crontab.guru', category: '测试工具', icon: '⏰' }
-  ];
-
   let state = {
     links: [],
     editingLinkId: null,
-    query: '',
     category: ''
   };
 
@@ -60,7 +38,6 @@
     elements.linkIconInput = document.getElementById('link-icon');
     elements.fileInput = document.getElementById('file-input');
     elements.bookmarkFileInput = document.getElementById('bookmark-file-input');
-    elements.searchInput = document.getElementById('search-input');
     elements.categorySelect = document.getElementById('category-select');
     elements.filtersMeta = document.getElementById('filters-meta');
 
@@ -78,11 +55,6 @@
     elements.linkModal.addEventListener('click', handleModalClick);
     elements.fileInput.addEventListener('change', handleFileSelect);
     elements.bookmarkFileInput.addEventListener('change', handleBookmarksFileSelect);
-
-    elements.searchInput.addEventListener('input', debounce(() => {
-      state.query = elements.searchInput.value.trim();
-      renderLinks();
-    }, 150));
 
     elements.categorySelect.addEventListener('change', () => {
       state.category = elements.categorySelect.value;
@@ -155,14 +127,11 @@
   function loadLinks() {
     if (typeof storage === 'undefined') {
       console.error('storage 未定义，请确保 utils.js 已加载');
-      state.links = [...DEFAULT_LINKS];
+      state.links = [];
       return;
     }
 
-    const deletedDefaultIds = new Set(storage.get(STORAGE_KEYS.DELETED_DEFAULT_IDS, []));
-    state.links = DEFAULT_LINKS.filter(l => !deletedDefaultIds.has(l.id));
-    const customLinks = storage.get(STORAGE_KEYS.LINKS, []);
-    state.links = mergeLinks(state.links, customLinks);
+    state.links = storage.get(STORAGE_KEYS.LINKS, []);
     applyMetaToLinks(state.links);
   }
 
@@ -222,13 +191,6 @@
       if (ai !== bi) return ai - bi;
       return (a.name || '').localeCompare(b.name || '');
     });
-  }
-
-  function mergeLinks(defaultLinks, customLinks) {
-    const merged = new Map();
-    defaultLinks.forEach(link => merged.set(link.id, link));
-    customLinks.forEach(link => merged.set(link.id, link));
-    return Array.from(merged.values());
   }
 
   function renderLinks() {
@@ -323,14 +285,11 @@
   }
 
   function filterLinks(links) {
-    const q = (state.query || '').toLowerCase();
     const cat = state.category || '';
     return links.filter(l => {
       const c = l.category || '其他';
       if (cat && c !== cat) return false;
-      if (!q) return true;
-      const hay = `${l.name || ''} ${l.url || ''} ${c}`.toLowerCase();
-      return hay.includes(q);
+      return true;
     });
   }
 
@@ -501,13 +460,7 @@
   }
 
   function saveCustomLinks() {
-    const defaultIds = new Set(DEFAULT_LINKS.map(l => l.id));
-    const customLinks = state.links.filter(l => !defaultIds.has(l.id));
-    storage.set(STORAGE_KEYS.LINKS, customLinks);
-  }
-
-  function saveDeletedDefaultIds(deletedIds) {
-    storage.set(STORAGE_KEYS.DELETED_DEFAULT_IDS, Array.from(deletedIds));
+    storage.set(STORAGE_KEYS.LINKS, state.links);
   }
 
   function deleteLink(id) {
@@ -515,13 +468,6 @@
     if (index < 0) return;
 
     state.links.splice(index, 1);
-    // 默认链接的删除需要持久化，否则刷新后会重新出现
-    const defaultIds = new Set(DEFAULT_LINKS.map(l => l.id));
-    if (defaultIds.has(id)) {
-      const deleted = new Set(storage.get(STORAGE_KEYS.DELETED_DEFAULT_IDS, []));
-      deleted.add(id);
-      saveDeletedDefaultIds(deleted);
-    }
     saveCustomLinks();
     renderLinks();
     showToast('删除成功', 'success');
@@ -548,15 +494,13 @@
   }
 
   function exportConfig() {
-    const deletedDefaultIds = storage.get(STORAGE_KEYS.DELETED_DEFAULT_IDS, []);
     const order = storage.get(STORAGE_KEYS.ORDER, []);
     const meta = storage.get(STORAGE_KEYS.META, {});
     const categoryOrder = storage.get(STORAGE_KEYS.CATEGORY_ORDER, []);
     const config = {
-      version: '1.0.0',
+      version: '2.0.0',
       timestamp: new Date().toISOString(),
       links: state.links,
-      deletedDefaultIds,
       order,
       meta,
       categoryOrder
@@ -582,10 +526,7 @@
       return;
     }
 
-    const deleted = new Set(Array.isArray(config.deletedDefaultIds) ? config.deletedDefaultIds : []);
-    saveDeletedDefaultIds(deleted);
-    const filteredDefaults = DEFAULT_LINKS.filter(l => !deleted.has(l.id));
-    state.links = mergeLinks(filteredDefaults, config.links);
+    state.links = config.links;
     if (Array.isArray(config.order)) saveOrder(config.order);
     if (config.meta && typeof config.meta === 'object') saveMetaMap(config.meta);
     if (Array.isArray(config.categoryOrder)) saveCategoryOrder(config.categoryOrder);

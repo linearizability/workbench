@@ -42,7 +42,7 @@
 - 链接管理：新增、编辑、删除
 - 分类展示、搜索过滤、置顶与拖拽排序
 - 批量导入、配置迁移（导出/导入 JSON）
-- 本地持久化：`tools_home_links` / `tools_home_deleted_default_link_ids` / `tools_home_link_order` / `tools_home_link_meta`
+- 本地持久化：`tools_home_links` / `tools_home_link_order` / `tools_home_link_meta`
 
 ### 文本处理 (notepad/)
 **位置**：`workbench/notepad/index.html`
