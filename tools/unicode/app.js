@@ -5,6 +5,10 @@
 (function() {
   'use strict';
 
+  function escapeAttr(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   let mode = 'encode';
   let format = '\\uXXXX';
 
@@ -47,6 +51,8 @@
       format = el.formatSelect.value;
       doConvert();
     });
+
+    el.infoGrid.addEventListener('click', handleInfoCardClick);
 
     el.inputEditor.addEventListener('click', handleInputClick);
 
@@ -178,13 +184,16 @@
     }
 
     let html = '';
+    let isFirst = true;
     for (const ch of chars.slice(0, 20)) {
       const cp = ch.codePointAt(0);
       const hex = cp.toString(16).toUpperCase().padStart(4, '0');
-      html += `<div class="unicode-info-card" data-char="${escapeAttr(ch)}">
+      const activeClass = isFirst ? ' is-active' : '';
+      html += `<div class="unicode-info-card${activeClass}" data-char="${escapeAttr(ch)}">
         <div class="unicode-info-card-label">${escapeHtml(ch)}</div>
         <div class="unicode-info-card-value">\\u${hex} · U+${hex} · &#x${hex}; · ${cp}</div>
       </div>`;
+      isFirst = false;
     }
     if (chars.length > 20) {
       html += `<div class="unicode-info-card"><div class="unicode-info-card-label">…</div><div class="unicode-info-card-value">还有 ${chars.length - 20} 个字符</div></div>`;
@@ -219,6 +228,17 @@
     return Array.from(bytes).map(b => '0x' + b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
   }
 
+  function handleInfoCardClick(e) {
+    const card = e.target.closest('.unicode-info-card[data-char]');
+    if (!card) return;
+    const ch = card.dataset.char;
+    if (!ch) return;
+    el.infoGrid.querySelectorAll('.unicode-info-card').forEach(c => c.classList.remove('is-active'));
+    card.classList.add('is-active');
+    const cp = ch.codePointAt(0);
+    updateCharDetail(ch, cp);
+  }
+
   function handleInputClick() {
     if (mode !== 'encode') return;
     const text = el.inputEditor.value;
@@ -232,6 +252,9 @@
     if (ch && ch.charCodeAt(0) > 127) {
       const cp = ch.codePointAt(0);
       updateCharDetail(ch, cp);
+      el.infoGrid.querySelectorAll('.unicode-info-card').forEach(c => {
+        c.classList.toggle('is-active', c.dataset.char === ch);
+      });
     }
   }
 
