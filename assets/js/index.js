@@ -163,6 +163,9 @@
 
   // ── 全局搜索 ──
 
+  let searchResultsData = [];
+  let searchActiveIndex = -1;
+
   function initSearch() {
     elements.searchInput = document.getElementById('global-search-input');
     elements.searchClear = document.getElementById('global-search-clear');
@@ -177,6 +180,8 @@
       if (elements.searchInput.value.trim()) handleSearch();
     });
     elements.searchClear.addEventListener('click', clearSearch);
+
+    elements.searchInput.addEventListener('keydown', handleSearchKeydown);
 
     document.addEventListener('click', (e) => {
       if (!e.target.closest('#global-search')) {
@@ -196,10 +201,37 @@
     });
   }
 
+  function handleSearchKeydown(e) {
+    if (!elements.searchResults.classList.contains('is-visible')) return;
+    const items = elements.searchResults.querySelectorAll('.global-search-item');
+    if (items.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      searchActiveIndex = searchActiveIndex < items.length - 1 ? searchActiveIndex + 1 : 0;
+      updateSearchFocus(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      searchActiveIndex = searchActiveIndex > 0 ? searchActiveIndex - 1 : items.length - 1;
+      updateSearchFocus(items);
+    } else if (e.key === 'Enter' && searchActiveIndex >= 0 && searchActiveIndex < items.length) {
+      e.preventDefault();
+      items[searchActiveIndex].click();
+    }
+  }
+
+  function updateSearchFocus(items) {
+    items.forEach((item, i) => item.classList.toggle('is-focused', i === searchActiveIndex));
+    if (searchActiveIndex >= 0 && items[searchActiveIndex]) {
+      items[searchActiveIndex].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
   function handleSearch() {
     const query = elements.searchInput.value.trim().toLowerCase();
     elements.searchClear.style.display = query.length > 0 ? 'flex' : 'none';
     if (elements.searchKbd) elements.searchKbd.style.display = query.length > 0 ? 'none' : '';
+    searchActiveIndex = -1;
 
     if (!query) {
       closeSearchResults();
@@ -318,6 +350,7 @@
 
   function closeSearchResults() {
     elements.searchResults.classList.remove('is-visible');
+    searchActiveIndex = -1;
   }
 
   function clearSearch() {

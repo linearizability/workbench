@@ -27,6 +27,11 @@
   box-shadow: var(--shadow-sm);
 }
 
+.unicode-info-card.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-bg-active, rgba(59, 130, 246, 0.08));
+}
+
 .unicode-info-card-label {
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
