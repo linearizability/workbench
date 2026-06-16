@@ -203,7 +203,6 @@
 
     if (!query) {
       closeSearchResults();
-      resetMenuFilter();
       return;
     }
 
@@ -254,7 +253,6 @@
     } catch (_) {}
 
     renderSearchResults(results, query);
-    filterMenuByQuery(query);
   }
 
   function renderSearchResults(results, query) {
@@ -327,29 +325,6 @@
     elements.searchClear.style.display = 'none';
     if (elements.searchKbd) elements.searchKbd.style.display = '';
     closeSearchResults();
-    resetMenuFilter();
-  }
-
-  function filterMenuByQuery(query) {
-    elements.navButtons.forEach(btn => {
-      const text = (btn.textContent || '').toLowerCase();
-      const match = text.includes(query);
-      btn.style.display = match ? '' : 'none';
-    });
-
-    const toolboxToggle = elements.toolboxGroup;
-    if (toolboxToggle && query) {
-      toolboxToggle.classList.remove('is-collapsed');
-      if (elements.toolboxToggle) {
-        elements.toolboxToggle.setAttribute('aria-expanded', 'true');
-      }
-    }
-  }
-
-  function resetMenuFilter() {
-    elements.navButtons.forEach(btn => {
-      btn.style.display = '';
-    });
   }
 
   init();
