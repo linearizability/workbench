@@ -113,33 +113,55 @@
     }
 
     /**
-     * 表达式求值：支持 {{nodeId.outputName}} 语法引用其他节点输出
+     * 表达式求值：支持 {{nodeId.outputName.field.subfield}} 语法引用其他节点输出
+     * 路径至少包含 nodeId，后续字段可选；支持任意层级嵌套访问。
      */
     resolveValue(value) {
       if (typeof value !== 'string') return value;
 
       const fullMatch = value.match(/^\{\{([^}]+)\}\}$/);
       if (fullMatch) {
-        const result = this.lookupValue(fullMatch[1].trim());
-        return result !== undefined ? result : value;
+        const path = fullMatch[1].trim();
+        const result = this.lookupValue(path);
+        if (result === undefined) {
+          this.logs.push({ nodeId: '__engine', tool: '__engine', status: 'warning', message: `表达式引用未命中: {{${path}}}` });
+          return value;
+        }
+        return result;
       }
 
-      return value.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
-        const result = this.lookupValue(path.trim());
-        if (result === undefined) return match;
+      let hasUnresolved = false;
+      const replaced = value.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+        const trimmed = path.trim();
+        const result = this.lookupValue(trimmed);
+        if (result === undefined) {
+          hasUnresolved = true;
+          return match;
+        }
         if (typeof result === 'object') return JSON.stringify(result);
         return String(result);
       });
+      if (hasUnresolved) {
+        this.logs.push({ nodeId: '__engine', tool: '__engine', status: 'warning', message: `字符串内表达式存在未命中: ${value}` });
+      }
+      return replaced;
     }
 
+    /**
+     * 按点分路径查找：nodeId.outputName.field.sub...
+     * @param {string} path - 如 "n1.text.foo.bar"
+     * @returns {*} 未命中返回 undefined
+     */
     lookupValue(path) {
-      const parts = path.split('.');
+      const parts = path.split('.').filter(Boolean);
+      if (!parts.length) return undefined;
       const nodeId = parts[0];
-      const outputName = parts[1];
-      const state = this.states[nodeId];
-      if (!state) return undefined;
-      if (outputName) return state[outputName];
-      return state;
+      let current = this.states[nodeId];
+      for (let i = 1; i < parts.length; i++) {
+        if (current == null) return undefined;
+        current = current[parts[i]];
+      }
+      return current;
     }
 
     resolveDeep(obj) {

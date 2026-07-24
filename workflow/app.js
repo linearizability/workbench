@@ -8,13 +8,14 @@
   const el = {};
   const state = {
     nodes: [],      // { id, tool, x, y, params }
-    edges: [],      // { from, to, fromOutput, toInput }
+    edges: [],      // { id, from, to, fromOutput, toInput }
     selectedNode: null,
-    selectedEdge: null,   // index in state.edges
-    nextId: 1,
+    selectedEdge: null,   // edge id (string)
+    nextNodeId: 1,
+    nextEdgeId: 1,
     dragging: null,       // { id, offsetX, offsetY }
     drawingEdge: null,    // { fromId, fromOutput, svgPath }
-    autoRun: { enabled: false, timerId: null, nextRun: null }
+    autoRun: { enabled: false, timerId: null, nextRun: null, countdownTimerId: null }
   };
 
   const TOOL_MANIFESTS = []; // 已加载的工具元数据
@@ -45,13 +46,9 @@
 
   // ── 加载工具清单（manifest 已由 index.html 静态加载，此处仅做组装）──
   async function loadToolManifests() {
-    const toolIds = ['json', 'diff', 'http-request', 'base64', 'uuid', 'md5', 'url', 'jwt', 'timestamp',
-      'cron', 'qrcode', 'regex', 'file-generator', 'image-generator', 'properties-yaml',
-      'svg-editor', 'json-to-struct', 'notepad', 'links', 'password-generator', 'unicode'];
-    toolIds.forEach(id => {
-      const tool = window.TOOL_REGISTRY.get(id);
-      if (tool) TOOL_MANIFESTS.push(tool);
-    });
+    // 直接从注册中心获取所有已注册工具
+    const registeredTools = window.TOOL_REGISTRY.list();
+    TOOL_MANIFESTS.push(...registeredTools);
 
     // 注册内置条件分支工具
     TOOL_MANIFESTS.push({
@@ -110,12 +107,23 @@
         params: n.params,
         initialInputs: n.initialInputs
       })),
-      edges: state.edges
+      edges: state.edges.map(e => ({
+        id: e.id,
+        from: e.from,
+        to: e.to,
+        fromOutput: e.fromOutput,
+        toInput: e.toInput
+      }))
     };
     const saved = getSavedWorkflows();
     saved[name] = { data, savedAt: Date.now() };
-    storage.set(SAVED_WORKFLOWS_KEY, saved);
-    storage.set(AUTO_SAVE_KEY, name);
+    try {
+      storage.set(SAVED_WORKFLOWS_KEY, saved);
+      storage.set(AUTO_SAVE_KEY, name);
+    } catch (err) {
+      showToast('本地存储已满或不可用: ' + (err.message || err), 'error');
+      return;
+    }
     updateSavedList();
     showToast(`已保存到本地: ${name}`, 'success');
   }
@@ -158,12 +166,17 @@
   }
 
   function tryAutoLoad() {
-    const lastName = storage.get(AUTO_SAVE_KEY, '');
-    if (lastName) {
-      const saved = getSavedWorkflows();
-      if (saved[lastName]) {
-        loadWorkflowLocal(lastName);
+    try {
+      const lastName = storage.get(AUTO_SAVE_KEY, '');
+      if (lastName) {
+        const saved = getSavedWorkflows();
+        if (saved[lastName]) {
+          loadWorkflowLocal(lastName);
+        }
       }
+    } catch (err) {
+      console.error('自动加载工作流失败:', err);
+      storage.remove(AUTO_SAVE_KEY);
     }
   }
 
@@ -182,14 +195,69 @@
   }
 
   function applyWorkflowData(data) {
-    if (data.nodes) state.nodes = data.nodes;
-    if (data.edges) state.edges = data.edges;
+    if (!data || typeof data !== 'object') {
+      showToast('工作流数据格式无效', 'error');
+      return;
+    }
+    if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
+      showToast('工作流数据缺少 nodes 或 edges 数组', 'error');
+      return;
+    }
+
+    // 规范化节点：补齐缺失字段，过滤非法项
+    const validNodeIds = new Set();
+    const nodes = [];
+    for (const n of data.nodes) {
+      if (!n || typeof n !== 'object' || !n.id || !n.tool) {
+        console.warn('跳过无效节点:', n);
+        continue;
+      }
+      validNodeIds.add(n.id);
+      nodes.push({
+        id: String(n.id),
+        tool: String(n.tool),
+        name: n.name ? String(n.name) : n.tool,
+        icon: n.icon || '🔧',
+        x: Number(n.x) || 0,
+        y: Number(n.y) || 0,
+        params: (n.params && typeof n.params === 'object') ? n.params : {},
+        initialInputs: (n.initialInputs && typeof n.initialInputs === 'object') ? n.initialInputs : {}
+      });
+    }
+
+    // 规范化边：丢弃引用不存在节点的边
+    const edges = [];
+    for (const e of data.edges) {
+      if (!e || !e.from || !e.to || !e.fromOutput || !e.toInput) {
+        console.warn('跳过无效边:', e);
+        continue;
+      }
+      if (!validNodeIds.has(e.from) || !validNodeIds.has(e.to)) continue;
+      edges.push({
+        id: e.id ? String(e.id) : ('e' + (edges.length + 1) + '_' + Date.now()),
+        from: String(e.from),
+        to: String(e.to),
+        fromOutput: String(e.fromOutput),
+        toInput: String(e.toInput)
+      });
+    }
+
+    state.nodes = nodes;
+    state.edges = edges;
+
     // 更新 nextId 避免 ID 冲突
-    const maxId = state.nodes.reduce((max, n) => {
+    const maxNodeId = state.nodes.reduce((max, n) => {
       const num = parseInt(n.id.replace(/^n/, ''), 10);
       return isNaN(num) ? max : Math.max(max, num);
     }, 0);
-    state.nextId = maxId + 1;
+    state.nextNodeId = maxNodeId + 1;
+
+    const maxEdgeId = state.edges.reduce((max, e) => {
+      const num = parseInt(String(e.id).replace(/^e/, ''), 10);
+      return isNaN(num) ? max : Math.max(max, num);
+    }, 0);
+    state.nextEdgeId = maxEdgeId + 1;
+
     // 重新渲染
     el.nodesLayer.innerHTML = '';
     el.svg.innerHTML = '';
@@ -307,7 +375,7 @@
     const manifest = TOOL_MANIFESTS.find(t => t.id === toolId);
     if (!manifest) return;
 
-    const id = 'n' + state.nextId++;
+    const id = 'n' + state.nextNodeId++;
     const rect = el.canvas.getBoundingClientRect();
     const x = rect.width / 2 - 90 + (Math.random() * 40 - 20);
     const y = rect.height / 2 - 20 + (Math.random() * 40 - 20);
@@ -533,13 +601,60 @@
       cancelDrawingEdge();
       return;
     }
-    // 避免重复连线
+    // 避免重复连线（同一 from/to/fromOutput/toInput）
     const exists = state.edges.some(e => e.from === fromId && e.to === toId && e.fromOutput === fromOutput && e.toInput === toPort);
     if (!exists) {
-      state.edges.push({ from: fromId, to: toId, fromOutput, toInput: toPort });
+      // 实时环检测：临时加入后做拓扑校验
+      const tempEdges = state.edges.concat([{ from: fromId, to: toId }]);
+      if (wouldCreateCycle(tempEdges)) {
+        showToast('该连线会形成环，已阻止', 'warning');
+        cancelDrawingEdge();
+        return;
+      }
+      const edge = {
+        id: 'e' + (state.nextEdgeId++),
+        from: fromId,
+        to: toId,
+        fromOutput,
+        toInput: toPort
+      };
+      state.edges.push(edge);
     }
     cancelDrawingEdge();
     renderEdges();
+  }
+
+  /**
+   * 环检测：对临时边集合做 Kahn 拓扑，若不能遍历全部节点则有环
+   * 仅基于 from/to（忽略条件分支语义），保守检测
+   */
+  function wouldCreateCycle(edges) {
+    const inDegree = {};
+    const adj = {};
+    const nodeSet = new Set();
+    edges.forEach(e => {
+      nodeSet.add(e.from);
+      nodeSet.add(e.to);
+    });
+    nodeSet.forEach(id => { inDegree[id] = 0; adj[id] = []; });
+    edges.forEach(e => {
+      if (adj[e.from]) {
+        adj[e.from].push(e.to);
+        inDegree[e.to] = (inDegree[e.to] || 0) + 1;
+      }
+    });
+    const queue = [];
+    Object.keys(inDegree).forEach(id => { if (inDegree[id] === 0) queue.push(id); });
+    let visited = 0;
+    while (queue.length) {
+      const id = queue.shift();
+      visited++;
+      (adj[id] || []).forEach(next => {
+        inDegree[next]--;
+        if (inDegree[next] === 0) queue.push(next);
+      });
+    }
+    return visited !== nodeSet.size;
   }
 
   function cancelDrawingEdge() {
@@ -554,7 +669,7 @@
     // 清除现有连线（保留 drawing 中的）
     el.svg.querySelectorAll('.workflow-edge:not(.workflow-edge-drawing)').forEach(p => p.remove());
 
-    state.edges.forEach((edge, index) => {
+    state.edges.forEach(edge => {
       const fromNode = state.nodes.find(n => n.id === edge.from);
       const toNode = state.nodes.find(n => n.id === edge.to);
       if (!fromNode || !toNode) return;
@@ -576,33 +691,34 @@
         edgeClass += edge.fromOutput === 'true' ? ' workflow-edge-true' : ' workflow-edge-false';
       }
       path.setAttribute('class', edgeClass);
-      path.setAttribute('data-edge-index', index);
+      path.setAttribute('data-edge-id', edge.id);
       path.setAttribute('d', `M ${fromX} ${fromY} C ${fromX + 80} ${fromY}, ${toX - 80} ${toY}, ${toX} ${toY}`);
       path.addEventListener('click', (e) => {
         e.stopPropagation();
-        selectEdge(index);
+        selectEdge(edge.id);
       });
       el.svg.appendChild(path);
     });
 
     // 恢复选中状态
     if (state.selectedEdge !== null) {
-      const path = el.svg.querySelector(`[data-edge-index="${state.selectedEdge}"]`);
+      const path = el.svg.querySelector(`[data-edge-id="${state.selectedEdge}"]`);
       if (path) path.classList.add('is-selected');
     }
   }
 
-  function selectEdge(index) {
-    state.selectedEdge = index;
+  function selectEdge(edgeId) {
+    state.selectedEdge = edgeId;
     state.selectedNode = null;
     document.querySelectorAll('.workflow-node').forEach(n => n.classList.remove('is-selected'));
-    el.svg.querySelectorAll('.workflow-edge').forEach(p => p.classList.toggle('is-selected', Number(p.dataset.edgeIndex) === index));
+    el.svg.querySelectorAll('.workflow-edge').forEach(p => p.classList.toggle('is-selected', p.dataset.edgeId === edgeId));
     renderProps();
   }
 
-  function removeEdge(index) {
-    state.edges.splice(index, 1);
-    state.selectedEdge = null;
+  function removeEdge(edgeId) {
+    const idx = state.edges.findIndex(e => e.id === edgeId);
+    if (idx >= 0) state.edges.splice(idx, 1);
+    if (state.selectedEdge === edgeId) state.selectedEdge = null;
     renderEdges();
     renderProps();
   }
@@ -629,7 +745,7 @@
 
   // ── 边属性面板 ──
   function renderEdgeProps() {
-    const edge = state.edges[state.selectedEdge];
+    const edge = state.edges.find(e => e.id === state.selectedEdge);
     if (!edge) {
       el.props.innerHTML = '<div class="workflow-props-placeholder">选中连线以查看信息</div>';
       return;
@@ -658,7 +774,7 @@
         <div class="workflow-props-section">条件分支</div>
         <div class="workflow-prop-row">
           <label class="workflow-prop-label">分支类型</label>
-          <select class="workflow-prop-input" data-edge-branch="${state.selectedEdge}">
+          <select class="workflow-prop-input" data-edge-branch="${escapeHtml(edge.id)}">
             <option value="true" ${edge.fromOutput === 'true' ? 'selected' : ''}>满足条件 (true)</option>
             <option value="false" ${edge.fromOutput === 'false' ? 'selected' : ''}>不满足条件 (false)</option>
           </select>
@@ -670,10 +786,11 @@
 
     el.props.querySelectorAll('[data-edge-branch]').forEach(sel => {
       sel.addEventListener('change', () => {
-        const idx = Number(sel.dataset.edgeBranch);
+        const eid = sel.dataset.edgeBranch;
         const branch = sel.value;
-        if (state.edges[idx]) {
-          state.edges[idx].fromOutput = branch;
+        const target = state.edges.find(e => e.id === eid);
+        if (target) {
+          target.fromOutput = branch;
           renderEdges();
         }
       });
@@ -1046,7 +1163,8 @@
     state.edges = [];
     state.selectedNode = null;
     state.selectedEdge = null;
-    state.nextId = 1;
+    state.nextNodeId = 1;
+    state.nextEdgeId = 1;
     el.nodesLayer.innerHTML = '';
     el.svg.innerHTML = '';
     renderProps();
