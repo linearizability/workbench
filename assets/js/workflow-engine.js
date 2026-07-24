@@ -322,45 +322,11 @@
     }
 
     /**
-     * 拓扑排序（Kahn 算法）
+     * 拓扑排序（展开分层结果为线性）
      * 保留此方法供外部调用（如画布环检测）
      */
     topologicalSort(workflow) {
-      const inDegree = {};
-      const adj = {};
-
-      workflow.nodes.forEach(n => {
-        inDegree[n.id] = 0;
-        adj[n.id] = [];
-      });
-
-      workflow.edges.forEach(e => {
-        if (adj[e.from]) {
-          adj[e.from].push(e.to);
-          inDegree[e.to] = (inDegree[e.to] || 0) + 1;
-        }
-      });
-
-      const queue = workflow.nodes
-        .filter(n => (inDegree[n.id] || 0) === 0)
-        .map(n => n.id);
-
-      const result = [];
-
-      while (queue.length) {
-        const id = queue.shift();
-        result.push(id);
-        adj[id].forEach(next => {
-          inDegree[next]--;
-          if (inDegree[next] === 0) queue.push(next);
-        });
-      }
-
-      if (result.length !== workflow.nodes.length) {
-        throw new Error('工作流存在循环依赖');
-      }
-
-      return result;
+      return this.groupByLevel(workflow).flat();
     }
   }
 

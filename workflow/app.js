@@ -275,9 +275,9 @@
       return;
     }
     el.toolList.innerHTML = TOOL_MANIFESTS.map(t => `
-      <div class="workflow-tool-item" data-tool="${t.id}" title="${t.description || ''}">
+      <div class="workflow-tool-item" data-tool="${t.id}" title="${escapeHtml(t.description || '')}">
         <span class="workflow-tool-icon">${t.icon || '🔧'}</span>
-        <span class="workflow-tool-name">${t.name}</span>
+        <span class="workflow-tool-name">${escapeHtml(t.name)}</span>
       </div>
     `).join('');
   }
