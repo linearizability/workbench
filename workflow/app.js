@@ -15,10 +15,15 @@
     nextEdgeId: 1,
     dragging: null,       // { id, offsetX, offsetY }
     drawingEdge: null,    // { fromId, fromOutput, svgPath }
-    autoRun: { enabled: false, timerId: null, nextRun: null, countdownTimerId: null }
+    autoRun: { enabled: false, timerId: null, nextRun: null, countdownTimerId: null },
+    dirty: false,         // 自上次保存/加载以来是否有未持久化改动
+    lastSavedName: null   // 最近一次保存/加载的工作流名称
   };
 
   const TOOL_MANIFESTS = []; // 已加载的工具元数据
+
+  function markDirty() { state.dirty = true; }
+  function markClean() { state.dirty = false; }
 
   async function init() {
     cacheElements();
@@ -31,6 +36,7 @@
 
   function cacheElements() {
     el.toolList = document.getElementById('tool-list');
+    el.toolSearch = document.getElementById('tool-search');
     el.canvas = document.getElementById('workflow-canvas');
     el.svg = document.getElementById('workflow-svg');
     el.nodesLayer = document.getElementById('workflow-nodes');
@@ -125,6 +131,8 @@
       return;
     }
     updateSavedList();
+    state.lastSavedName = name;
+    markClean();
     showToast(`已保存到本地: ${name}`, 'success');
   }
 
@@ -137,6 +145,8 @@
     }
     applyWorkflowData(entry.data);
     storage.set(AUTO_SAVE_KEY, name);
+    state.lastSavedName = name;
+    markClean();
     showToast(`已加载: ${name}`, 'success');
   }
 
@@ -269,12 +279,20 @@
   }
 
   // ── 渲染左侧工具箱 ──
-  function renderToolList() {
-    if (!TOOL_MANIFESTS.length) {
-      el.toolList.innerHTML = '<div class="placeholder">暂无可用工具</div>';
+  function renderToolList(query = '') {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? TOOL_MANIFESTS.filter(t =>
+          (t.name && t.name.toLowerCase().includes(q)) ||
+          (t.id && t.id.toLowerCase().includes(q)) ||
+          (t.description && t.description.toLowerCase().includes(q)))
+      : TOOL_MANIFESTS;
+
+    if (!filtered.length) {
+      el.toolList.innerHTML = '<div class="placeholder">未找到匹配工具</div>';
       return;
     }
-    el.toolList.innerHTML = TOOL_MANIFESTS.map(t => `
+    el.toolList.innerHTML = filtered.map(t => `
       <div class="workflow-tool-item" data-tool="${t.id}" title="${escapeHtml(t.description || '')}">
         <span class="workflow-tool-icon">${t.icon || '🔧'}</span>
         <span class="workflow-tool-name">${escapeHtml(t.name)}</span>
@@ -289,6 +307,13 @@
       const item = e.target.closest('[data-tool]');
       if (item) addNode(item.dataset.tool);
     });
+
+    // 工具箱搜索（input 事件实时过滤）
+    if (el.toolSearch) {
+      el.toolSearch.addEventListener('input', () => {
+        renderToolList(el.toolSearch.value);
+      });
+    }
 
     // 画布拖拽与连线
     el.canvas.addEventListener('mousedown', handleMouseDown);
@@ -337,10 +362,14 @@
       });
     }
 
-    // 页面卸载时清理定时器
-    window.addEventListener('beforeunload', () => {
+    // 页面卸载时清理定时器，若有未保存改动则提示
+    window.addEventListener('beforeunload', (e) => {
       if (state.autoRun.timerId) clearTimeout(state.autoRun.timerId);
       if (state.autoRun.countdownTimerId) clearInterval(state.autoRun.countdownTimerId);
+      if (state.dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
     });
 
     // 倒计时刷新 interval：startAutoRun 时启动，stopAutoRun 时清除
@@ -364,8 +393,52 @@
           removeEdge(state.selectedEdge);
         }
       }
+
+      // 复制 / 粘贴节点
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) return;
+        if (state.selectedNode) {
+          const node = state.nodes.find(n => n.id === state.selectedNode);
+          if (node) {
+            _clipboard = JSON.parse(JSON.stringify({
+              tool: node.tool,
+              name: node.name,
+              icon: node.icon,
+              params: node.params,
+              initialInputs: node.initialInputs
+            }));
+            showToast('节点已复制', 'info', 1500);
+          }
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) return;
+        if (_clipboard) {
+          const newId = 'n' + state.nextNodeId++;
+          const rect = el.canvas.getBoundingClientRect();
+          const node = {
+            id: newId,
+            tool: _clipboard.tool,
+            name: _clipboard.name,
+            icon: _clipboard.icon,
+            x: rect.width / 2 - 90 + (Math.random() * 40 - 20),
+            y: rect.height / 2 - 20 + (Math.random() * 40 - 20),
+            params: JSON.parse(JSON.stringify(_clipboard.params || {})),
+            initialInputs: JSON.parse(JSON.stringify(_clipboard.initialInputs || {}))
+          };
+          state.nodes.push(node);
+          renderNode(node);
+          selectNode(newId);
+          markDirty();
+          showToast('节点已粘贴', 'info', 1500);
+        }
+      }
     });
   }
+
+  let _clipboard = null;
 
   // ── 节点操作 ──
   function addNode(toolId) {
@@ -390,6 +463,7 @@
     state.nodes.push(node);
     renderNode(node);
     selectNode(id);
+    markDirty();
   }
 
   function buildDefaultParams(paramDefs) {
@@ -512,6 +586,7 @@
       state.selectedNode = null;
       renderProps();
     }
+    markDirty();
   }
 
   function selectNode(id) {
@@ -566,6 +641,10 @@
   }
 
   function handleMouseUp() {
+    if (state.dragging) {
+      // 拖拽结束，位置已变更
+      markDirty();
+    }
     state.dragging = null;
     if (state.drawingEdge) {
       // 如果未成功连接到目标端口，取消连线
@@ -619,6 +698,16 @@
         cancelDrawingEdge();
         return;
       }
+      // 软类型校验：端口名是否在 manifest 声明
+      const fromNode = state.nodes.find(n => n.id === fromId);
+      const toNode = state.nodes.find(n => n.id === toId);
+      const fromManifest = fromNode && TOOL_MANIFESTS.find(t => t.id === fromNode.tool);
+      const toManifest = toNode && TOOL_MANIFESTS.find(t => t.id === toNode.tool);
+      const fromOutOk = fromManifest && (fromManifest.outputs || []).some(o => o.name === fromOutput);
+      const toInOk = toManifest && (toManifest.inputs || []).some(i => i.name === toPort);
+      if (!fromOutOk || !toInOk) {
+        showToast(`端口不匹配：${fromOutput} → ${toPort}（已创建，请检查）`, 'warning');
+      }
       const edge = {
         id: 'e' + (state.nextEdgeId++),
         from: fromId,
@@ -630,6 +719,7 @@
     }
     cancelDrawingEdge();
     renderEdges();
+    markDirty();
   }
 
   /**
@@ -729,6 +819,7 @@
     if (state.selectedEdge === edgeId) state.selectedEdge = null;
     renderEdges();
     renderProps();
+    markDirty();
   }
 
   function updateNodeStatusBadges() {
@@ -961,6 +1052,7 @@
       input.addEventListener('change', () => {
         const paramName = input.dataset.param;
         node.params[paramName] = input.value;
+        markDirty();
         // select 变更可能触发 visibleWhen，重新渲染面板
         if (input.tagName === 'SELECT') {
           renderProps();
@@ -973,6 +1065,7 @@
       input.addEventListener('input', () => {
         const inputName = input.dataset.input;
         node.initialInputs[inputName] = input.value;
+        markDirty();
       });
     });
   }
@@ -1179,11 +1272,13 @@
     state.selectedEdge = null;
     state.nextNodeId = 1;
     state.nextEdgeId = 1;
+    state.lastSavedName = null;
     el.nodesLayer.innerHTML = '';
     el.svg.innerHTML = '';
     renderProps();
     el.logsBody.innerHTML = '';
     doClearResults();
+    markClean();
     showToast('画布已清空', 'success');
   }
 
