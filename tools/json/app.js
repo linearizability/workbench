@@ -287,48 +287,63 @@
   }
 
   /**
-   * 处理查询
+   * 处理查询（标准 JSONPath 语法）
    */
   function handleQuery() {
     const query = elements.queryInput.value.trim();
 
     if (!query || !state.inputJson) {
-      elements.queryResult.innerHTML = '<div class="placeholder">请输入有效的 JSON 和查询路径</div>';
+      elements.queryResult.innerHTML = '<div class="placeholder">请输入有效的 JSON 和 JSONPath 表达式</div>';
+      return;
+    }
+
+    if (typeof JSONPath === 'undefined') {
+      elements.queryResult.innerHTML = '<div class="placeholder" style="color: var(--color-danger);">JSONPath 库未加载</div>';
       return;
     }
 
     try {
-      const result = queryJson(state.inputJson, query);
-      elements.queryResult.textContent = JSON.stringify(result, null, 2);
+      const result = queryJsonPath(state.inputJson, query);
+      if (!result.success) {
+        elements.queryResult.innerHTML = `<div class="placeholder" style="color: var(--color-danger);">${result.error}</div>`;
+        return;
+      }
+      if (result.values.length === 0) {
+        elements.queryResult.innerHTML = '<div class="placeholder">未匹配到任何数据</div>';
+        return;
+      }
+      const display = result.values.length === 1
+        ? JSON.stringify(result.values[0], null, 2)
+        : JSON.stringify(result.values, null, 2);
+      elements.queryResult.textContent = display;
     } catch (err) {
-      elements.queryResult.innerHTML = `<div class="placeholder" style="color: var(--color-danger);">查询错误: ${err.message}</div>`;
+      elements.queryResult.innerHTML = `<div class="placeholder" style="color: var(--color-danger);">查询错误: ${escapeHtml(err.message)}</div>`;
     }
   }
 
   /**
-   * 查询 JSON
+   * 使用 JSONPath Plus 查询 JSON
+   * 支持 RFC 9535 标准：$、..、*、[n]、[a,b]、[?(@.x)]、切片等
    */
-  function queryJson(obj, path) {
-    let result = obj;
-    const parts = path.split('.');
-
-    for (const part of parts) {
-      // 处理数组索引
-      const arrayMatch = part.match(/^(.+)\[(\d+)\]$/);
-      if (arrayMatch) {
-        const [, key, index] = arrayMatch;
-        result = result[key];
-        result = result[parseInt(index, 10)];
-      } else {
-        result = result[part];
-      }
-
-      if (result === undefined) {
-        throw new Error(`路径 "${part}" 不存在`);
-      }
+  function queryJsonPath(obj, path) {
+    try {
+      const values = JSONPath.JSONPath({ path, json: obj, resultType: 'value' });
+      return { success: true, values: values || [] };
+    } catch (err) {
+      return { success: false, error: escapeHtml(err.message || String(err)) };
     }
+  }
 
-    return result;
+  /**
+   * HTML 转义（防止查询错误信息中的特殊字符破坏 DOM）
+   */
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   /**

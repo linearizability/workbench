@@ -41,7 +41,8 @@
           { value: 'toYaml', label: '转 YAML' },
           { value: 'toCsv', label: '转 CSV' },
           { value: 'escape', label: '转义' },
-          { value: 'unescape', label: '反转义' }
+          { value: 'unescape', label: '反转义' },
+          { value: 'jsonpath', label: 'JSONPath 查询' }
         ],
         default: 'format'
       },
@@ -56,6 +57,13 @@
         ],
         default: '2',
         visibleWhen: { action: 'format' }
+      },
+      {
+        name: 'jsonpath',
+        type: 'text',
+        label: 'JSONPath 表达式',
+        default: '$',
+        visibleWhen: { action: 'jsonpath' }
       }
     ],
 

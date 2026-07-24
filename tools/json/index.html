@@ -114,8 +114,8 @@
       <!-- 路径查询 -->
       <div class="query-section">
         <div class="query-bar">
-          <label for="query-input" class="query-label">路径查询：</label>
-          <input type="text" id="query-input" class="query-input" placeholder="例如：data.users[0].name">
+          <label for="query-input" class="query-label">JSONPath 查询：</label>
+          <input type="text" id="query-input" class="query-input" placeholder="例如：$.store.book[*].author 或 $..price">
           <button class="btn btn-primary btn-sm" data-action="query">查询</button>
         </div>
         <div class="query-result" id="query-result">
@@ -136,6 +136,9 @@
 
   <!-- js-yaml 用于 YAML 转换 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+
+  <!-- JSONPath Plus 用于路径查询（本地零依赖） -->
+  <script src="../../assets/js/jsonpath-plus.min.js"></script>
 
   <script src="../../assets/js/utils.js"></script>
   <script src="manifest.js"></script>
