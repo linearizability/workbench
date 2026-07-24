@@ -100,6 +100,23 @@
             const csv = jsonToCsv(parsed);
             return { output: { text: csv, parsed }, error: null };
           }
+          case 'jsonpath': {
+            if (typeof JSONPath === 'undefined' || typeof JSONPath.JSONPath !== 'function') {
+              return { output: null, error: 'JSONPath 库未加载（jsonpath-plus）' };
+            }
+            const pathExpr = params.jsonpath || '$';
+            try {
+              const values = JSONPath.JSONPath({ path: pathExpr, json: parsed, resultType: 'value' });
+              const list = values || [];
+              const resultParsed = list.length === 1 ? list[0] : list;
+              const resultText = typeof resultParsed === 'string'
+                ? resultParsed
+                : JSON.stringify(resultParsed, null, INDENT_MAP[indent] || 2);
+              return { output: { text: resultText, parsed: resultParsed }, error: null };
+            } catch (err) {
+              return { output: null, error: 'JSONPath 查询失败: ' + (err.message || String(err)) };
+            }
+          }
           default: {
             const space = INDENT_MAP[indent] || 2;
             const result = JSON.stringify(parsed, null, space);
