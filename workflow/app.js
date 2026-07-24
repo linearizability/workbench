@@ -340,14 +340,11 @@
     // 页面卸载时清理定时器
     window.addEventListener('beforeunload', () => {
       if (state.autoRun.timerId) clearTimeout(state.autoRun.timerId);
+      if (state.autoRun.countdownTimerId) clearInterval(state.autoRun.countdownTimerId);
     });
 
-    // 每秒刷新倒计时显示
-    setInterval(() => {
-      if (state.autoRun.enabled && state.autoRun.nextRun) {
-        updateAutoRunUI();
-      }
-    }, 1000);
+    // 倒计时刷新 interval：startAutoRun 时启动，stopAutoRun 时清除
+    // （在 startAutoRun / stopAutoRun 中管理，避免空闲时持续运行）
 
     // 删除节点 / 连线
     window.addEventListener('keydown', (e) => {
@@ -476,11 +473,11 @@
     // hover 展开/收起时重新渲染连线
     div.addEventListener('mouseenter', () => {
       div.classList.add('is-hovered');
-      renderEdges();
+      scheduleRenderEdges();
     });
     div.addEventListener('mouseleave', () => {
       div.classList.remove('is-hovered');
-      renderEdges();
+      scheduleRenderEdges();
     });
 
     // 端口 mousedown 开始连线
@@ -520,7 +517,7 @@
   function selectNode(id) {
     state.selectedNode = id;
     document.querySelectorAll('.workflow-node').forEach(n => n.classList.toggle('is-selected', n.id === id));
-    renderEdges();
+    scheduleRenderEdges();
     renderProps();
   }
 
@@ -531,9 +528,20 @@
       state.selectedEdge = null;
       document.querySelectorAll('.workflow-node').forEach(n => n.classList.remove('is-selected'));
       el.svg.querySelectorAll('.workflow-edge').forEach(p => p.classList.remove('is-selected'));
-      renderEdges();
+      scheduleRenderEdges();
       renderProps();
     }
+  }
+
+  // rAF 节流标志：拖拽期间避免每帧多次 renderEdges
+  let _rafPending = false;
+  function scheduleRenderEdges() {
+    if (_rafPending) return;
+    _rafPending = true;
+    requestAnimationFrame(() => {
+      _rafPending = false;
+      renderEdges();
+    });
   }
 
   function handleMouseMove(e) {
@@ -547,7 +555,7 @@
         node.y = state.dragging.origY + dy;
         const div = document.getElementById(node.id);
         if (div) div.style.transform = `translate(${node.x}px, ${node.y}px)`;
-        renderEdges();
+        scheduleRenderEdges();
       }
     }
 
@@ -1253,6 +1261,14 @@
     state.autoRun.enabled = true;
     updateAutoRunUI();
     scheduleNext();
+    // 启动倒计时刷新 interval
+    if (!state.autoRun.countdownTimerId) {
+      state.autoRun.countdownTimerId = setInterval(() => {
+        if (state.autoRun.enabled && state.autoRun.nextRun) {
+          updateAutoRunUI();
+        }
+      }, 1000);
+    }
   }
 
   function stopAutoRun() {
@@ -1260,6 +1276,10 @@
     if (state.autoRun.timerId) {
       clearTimeout(state.autoRun.timerId);
       state.autoRun.timerId = null;
+    }
+    if (state.autoRun.countdownTimerId) {
+      clearInterval(state.autoRun.countdownTimerId);
+      state.autoRun.countdownTimerId = null;
     }
     state.autoRun.nextRun = null;
     updateAutoRunUI();
