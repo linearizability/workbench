@@ -9,31 +9,68 @@
     constructor() {
       this.states = {};      // 每个节点的输出缓存
       this.logs = [];        // 执行日志
+      this.continueOnError = false; // 错误策略：false=遇错即停，true=继续执行下游可运行节点
     }
 
     /**
      * 执行工作流（同层级节点并行）
      * @param {Object} workflow — { nodes: [...], edges: [...] }
-     * @returns {Promise<{ states, logs }>}
+     * @param {Object} [options] — { continueOnError?: boolean }
+     * @returns {Promise<{ states, logs, error }>}
      */
-    async run(workflow) {
+    async run(workflow, options = {}) {
       this.states = {};
       this.logs = [];
+      this.continueOnError = !!options.continueOnError;
 
       if (!workflow.nodes || !workflow.nodes.length) {
         throw new Error('工作流没有节点');
       }
 
+      // 预建 id → node 索引，避免后续 O(n²) find
+      this._nodeMap = {};
+      workflow.nodes.forEach(n => { this._nodeMap[n.id] = n; });
+
       // 按拓扑层级分组，同层节点并行执行
       const levels = this.groupByLevel(workflow);
 
+      let firstError = null;
+      const failedNodeIds = new Set();
+
       for (const level of levels) {
-        await Promise.all(
-          level.map(nodeId => this.executeNodeWithLogging(nodeId, workflow))
+        // 过滤掉已失败节点的下游（continueOnError 模式下跳过无法执行的节点）
+        const runnable = level.filter(id => {
+          if (failedNodeIds.has(id)) return false;
+          // 检查是否有上游失败导致本节点无法执行
+          const incoming = workflow.edges.filter(e => e.to === id);
+          if (incoming.length === 0) return true;
+          // 条件分支的边可能被过滤掉，这里仅看是否存在失败的上游直连
+          const hasFailedUpstream = incoming.some(e => failedNodeIds.has(e.from));
+          return !hasFailedUpstream;
+        });
+
+        const results = await Promise.allSettled(
+          runnable.map(nodeId => this.executeNodeWithLogging(nodeId, workflow))
         );
+
+        // 收集失败节点
+        results.forEach((r, i) => {
+          if (r.status === 'rejected') {
+            const nodeId = runnable[i];
+            failedNodeIds.add(nodeId);
+            if (!firstError) firstError = r.reason;
+          }
+        });
+
+        // stop-on-error：首个错误立即中断
+        if (!this.continueOnError && firstError) {
+          break;
+        }
       }
 
-      return { states: this.states, logs: this.logs };
+      const result = { states: this.states, logs: this.logs };
+      if (firstError) result.error = firstError.message;
+      return result;
     }
 
     /**
@@ -86,7 +123,7 @@
      * 执行单个节点并记录日志
      */
     async executeNodeWithLogging(nodeId, workflow) {
-      const node = workflow.nodes.find(n => n.id === nodeId);
+      const node = this._nodeMap[nodeId];
       const startTime = performance.now();
 
       try {
@@ -179,11 +216,18 @@
 
     /**
      * 评估条件表达式（内置条件节点用）
+     * 使用 `with` 切换作用域到 sandbox，屏蔽对全局/window 的直接访问。
+     * 注：仍允许基本字面量与运算符，足够覆盖典型条件场景。
      */
     evaluateCondition(expression, input, params) {
+      // 简单黑名单：禁止出现 window / document / globalThis / eval / Function / fetch 等
+      if (/(\bwindow\b|\bdocument\b|\bglobalThis\b|\beval\b|\bFunction\b|\bfetch\b|\bXMLHttpRequest\b|\bimport\b|\brequire\b)/.test(expression)) {
+        throw new Error('条件表达式包含禁用的标识符');
+      }
       try {
-        const fn = new Function('input', 'params', `return (${expression});`);
-        return !!fn(input, params);
+        const sandbox = { input, params, Math, JSON, String, Number, Boolean, Array, Object, Date, isNaN, isFinite };
+        const fn = new Function('sandbox', `with(sandbox){ return (${expression}); }`);
+        return !!fn(sandbox);
       } catch (e) {
         throw new Error(`条件表达式错误: ${e.message}`);
       }
@@ -196,6 +240,7 @@
       // 收集上游输入（含条件分支过滤）
       const input = {};
       const incomingEdges = workflow.edges.filter(e => e.to === node.id);
+      const inputSources = {}; // 记录每个 input 端口的来源，用于检测多上游覆盖
       for (const edge of incomingEdges) {
         const upstreamOutput = this.states[edge.from];
         if (upstreamOutput && upstreamOutput.__error) {
@@ -203,7 +248,7 @@
         }
 
         // 条件分支过滤：若上游是条件节点且条件不匹配，则忽略该边
-        const fromNode = workflow.nodes.find(n => n.id === edge.from);
+        const fromNode = this._nodeMap[edge.from];
         if (fromNode && fromNode.tool === '__condition') {
           const conditionResult = upstreamOutput?.__conditionResult;
           if ((edge.fromOutput === 'true' && !conditionResult) ||
@@ -212,6 +257,16 @@
           }
         }
 
+        // 多上游覆盖检测
+        if (inputSources[edge.toInput] && inputSources[edge.toInput] !== edge.from) {
+          this.logs.push({
+            nodeId: '__engine',
+            tool: '__engine',
+            status: 'warning',
+            message: `节点 ${node.id} 的输入端口 "${edge.toInput}" 被多个上游覆盖：${inputSources[edge.toInput]} → ${edge.from}（后者生效）`
+          });
+        }
+        inputSources[edge.toInput] = edge.from;
         input[edge.toInput] = upstreamOutput?.[edge.fromOutput];
       }
 
@@ -237,10 +292,14 @@
       if (node.tool === '__foreach') {
         const items = Array.isArray(resolvedInput.items) ? resolvedInput.items : [];
         const expr = resolvedParams.expression || 'item';
+        if (/(\bwindow\b|\bdocument\b|\bglobalThis\b|\beval\b|\bFunction\b|\bfetch\b|\bXMLHttpRequest\b|\bimport\b|\brequire\b)/.test(expr)) {
+          throw new Error('循环表达式包含禁用的标识符');
+        }
+        const sandbox = { Math, JSON, String, Number, Boolean, Array, Object, Date, isNaN, isFinite };
         const results = items.map((item, index) => {
           try {
-            const fn = new Function('item', 'index', `return (${expr});`);
-            return fn(item, index);
+            const fn = new Function('item', 'index', 'sandbox', `with(sandbox){ return (${expr}); }`);
+            return fn(item, index, sandbox);
           } catch (e) {
             return { __error: e.message };
           }
@@ -251,7 +310,7 @@
       // 若所有入边均来自条件节点且不匹配，则跳过执行
       if (incomingEdges.length > 0 && Object.keys(input).length === 0 &&
           incomingEdges.every(e => {
-            const fromNode = workflow.nodes.find(n => n.id === e.from);
+            const fromNode = this._nodeMap[e.from];
             return fromNode && fromNode.tool === '__condition';
           })) {
         return { output: {} };

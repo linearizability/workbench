@@ -984,34 +984,40 @@
     };
 
     const engine = new window.WorkflowEngine();
+    let result;
     try {
-      const result = await engine.run(workflow);
-      result.logs.forEach(log => {
-        const node = state.nodes.find(n => n.id === log.nodeId);
-        if (node) {
-          node.__lastResult = log.output;
-          node.__lastError = log.error || null;
-        }
-        appendLog(`[${log.nodeId}] ${log.tool} — ${log.status === 'success' ? '成功' : '失败'} (${log.duration}ms)`);
-      });
-      updateNodeStatusBadges();
-      renderProps();
-      renderFinalResults(engine);
-      showToast('工作流执行完成', 'success');
+      result = await engine.run(workflow, { continueOnError: false });
     } catch (err) {
-      // 已经执行过的节点也保存结果
-      engine.logs.forEach(log => {
-        const node = state.nodes.find(n => n.id === log.nodeId);
-        if (node) {
-          node.__lastResult = log.output;
-          node.__lastError = log.error || null;
-        }
-      });
-      updateNodeStatusBadges();
-      renderProps();
-      renderFinalResults(engine);
-      appendLog(`执行中断: ${err.message}`, 'error');
+      appendLog(`执行启动失败: ${err.message}`, 'error');
       showToast(err.message, 'error');
+      return;
+    }
+
+    // 将引擎日志回填到节点状态
+    result.logs.forEach(log => {
+      if (log.nodeId === '__engine') {
+        // 引擎自身的 warning 日志（表达式未命中、多上游覆盖等）
+        appendLog(`[engine] ${log.message}`, log.status === 'warning' ? 'warning' : 'info');
+        return;
+      }
+      const node = state.nodes.find(n => n.id === log.nodeId);
+      if (node) {
+        node.__lastResult = log.output;
+        node.__lastError = log.error || null;
+      }
+      const statusText = log.status === 'success' ? '成功' : (log.status === 'warning' ? '警告' : '失败');
+      appendLog(`[${log.nodeId}] ${log.tool} — ${statusText} (${log.duration}ms)`);
+    });
+
+    updateNodeStatusBadges();
+    renderProps();
+    renderFinalResults(engine);
+
+    if (result.error) {
+      appendLog(`执行中断: ${result.error}`, 'error');
+      showToast(result.error, 'error');
+    } else {
+      showToast('工作流执行完成', 'success');
     }
   }
 
