@@ -113,6 +113,32 @@
   background-size: 20px 20px;
 }
 
+/* 内层 viewport：承载 svg + nodes，应用 pan/zoom transform */
+.workflow-viewport {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  /* transform 由 JS 动态设置 */
+}
+
+/* 缩放控件 */
+.workflow-zoom-controls {
+  position: absolute;
+  right: var(--spacing-sm);
+  bottom: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  z-index: 10;
+}
+
+.workflow-zoom-controls .btn {
+  min-width: 32px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-weight: 600;
+  line-height: 1;
+}
+
 .workflow-hint {
   position: absolute;
   top: 50%;

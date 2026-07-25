@@ -17,13 +17,66 @@
     drawingEdge: null,    // { fromId, fromOutput, svgPath }
     autoRun: { enabled: false, timerId: null, nextRun: null, countdownTimerId: null, cronJob: null },
     dirty: false,         // 自上次保存/加载以来是否有未持久化改动
-    lastSavedName: null   // 最近一次保存/加载的工作流名称
+    lastSavedName: null,  // 最近一次保存/加载的工作流名称
+    // 画布平移/缩放
+    viewport: { scale: 1, offsetX: 0, offsetY: 0 },
+    panning: null,        // { startX, startY, origOffsetX, origOffsetY }
+    spaceDown: false      // 空格键是否按下（用于平移模式）
   };
 
   const TOOL_MANIFESTS = []; // 已加载的工具元数据
 
   function markDirty() { state.dirty = true; }
   function markClean() { state.dirty = false; }
+
+  // ── 画布平移/缩放 ──
+  const MIN_SCALE = 0.2;
+  const MAX_SCALE = 3;
+
+  function applyViewport() {
+    if (!el.viewport) return;
+    const { scale, offsetX, offsetY } = state.viewport;
+    el.viewport.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+  }
+
+  function setZoom(newScale, centerClientX, centerClientY) {
+    const oldScale = state.viewport.scale;
+    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+    if (clamped === oldScale) return;
+
+    // 以鼠标位置为中心缩放：保持鼠标下的画布点不动
+    const rect = el.canvas.getBoundingClientRect();
+    const cx = (centerClientX !== undefined ? centerClientX : rect.left + rect.width / 2) - rect.left;
+    const cy = (centerClientY !== undefined ? centerClientY : rect.top + rect.height / 2) - rect.top;
+
+    // 鼠标在画布坐标系中的位置（缩放前）
+    const canvasX = (cx - state.viewport.offsetX) / oldScale;
+    const canvasY = (cy - state.viewport.offsetY) / oldScale;
+
+    state.viewport.scale = clamped;
+    // 缩放后保持同一画布点对齐鼠标
+    state.viewport.offsetX = cx - canvasX * clamped;
+    state.viewport.offsetY = cy - canvasY * clamped;
+    applyViewport();
+  }
+
+  function resetZoom() {
+    state.viewport.scale = 1;
+    state.viewport.offsetX = 0;
+    state.viewport.offsetY = 0;
+    applyViewport();
+  }
+
+  // 屏幕坐标转画布坐标（用于在缩放后正确放置新节点）
+  function screenToCanvas(clientX, clientY) {
+    const rect = el.canvas.getBoundingClientRect();
+    const cx = clientX - rect.left;
+    const cy = clientY - rect.top;
+    return {
+      x: (cx - state.viewport.offsetX) / state.viewport.scale,
+      y: (cy - state.viewport.offsetY) / state.viewport.scale
+    };
+  }
 
   // ── 撤销/重做历史栈 ──
   const history = {
@@ -109,6 +162,7 @@
     await loadToolManifests();
     renderToolList();
     bindEvents();
+    applyViewport();
     updateSavedList();
     tryAutoLoad();
   }
@@ -117,6 +171,7 @@
     el.toolList = document.getElementById('tool-list');
     el.toolSearch = document.getElementById('tool-search');
     el.canvas = document.getElementById('workflow-canvas');
+    el.viewport = document.getElementById('workflow-viewport');
     el.svg = document.getElementById('workflow-svg');
     el.nodesLayer = document.getElementById('workflow-nodes');
     el.props = document.getElementById('workflow-props');
@@ -355,6 +410,7 @@
     renderProps();
     doClearLogs();
     doClearResults();
+    resetZoom();
     // 重置历史栈（加载新工作流后不应允许 undo 回上一个工作流）
     history.undoStack.length = 0;
     history.redoStack.length = 0;
@@ -401,6 +457,14 @@
     el.canvas.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+
+    // 滚轮缩放（以鼠标位置为中心）
+    el.canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = -e.deltaY;
+      const factor = delta > 0 ? 1.1 : 1 / 1.1;
+      setZoom(state.viewport.scale * factor, e.clientX, e.clientY);
+    }, { passive: false });
 
     // 按钮
     document.addEventListener('click', (e) => {
@@ -457,11 +521,30 @@
       }
     });
 
+    // 空格键释放：退出平移模式
+    window.addEventListener('keyup', (e) => {
+      if (e.key === ' ' || e.code === 'Space') {
+        state.spaceDown = false;
+        if (el.canvas) el.canvas.style.cursor = '';
+      }
+    });
+
     // 倒计时刷新 interval：startAutoRun 时启动，stopAutoRun 时清除
     // （在 startAutoRun / stopAutoRun 中管理，避免空闲时持续运行）
 
     // 删除节点 / 连线
     window.addEventListener('keydown', (e) => {
+      // 空格键：进入平移模式（仅非输入焦点时）
+      if (e.key === ' ' || e.code === 'Space') {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) return;
+        if (!state.spaceDown) {
+          state.spaceDown = true;
+          if (el.canvas) el.canvas.style.cursor = 'grab';
+        }
+        e.preventDefault();
+        return;
+      }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         // 若焦点在输入控件内，不触发节点删除
         const active = document.activeElement;
@@ -515,13 +598,14 @@
         if (_clipboard) {
           const newId = 'n' + state.nextNodeId++;
           const rect = el.canvas.getBoundingClientRect();
+          const center = screenToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2);
           const node = {
             id: newId,
             tool: _clipboard.tool,
             name: _clipboard.name,
             icon: _clipboard.icon,
-            x: rect.width / 2 - 90 + (Math.random() * 40 - 20),
-            y: rect.height / 2 - 20 + (Math.random() * 40 - 20),
+            x: center.x - 90 + (Math.random() * 40 - 20),
+            y: center.y - 20 + (Math.random() * 40 - 20),
             params: JSON.parse(JSON.stringify(_clipboard.params || {})),
             initialInputs: JSON.parse(JSON.stringify(_clipboard.initialInputs || {}))
           };
@@ -545,8 +629,10 @@
 
     const id = 'n' + state.nextNodeId++;
     const rect = el.canvas.getBoundingClientRect();
-    const x = rect.width / 2 - 90 + (Math.random() * 40 - 20);
-    const y = rect.height / 2 - 20 + (Math.random() * 40 - 20);
+    // 画布中心点（屏幕坐标）转画布坐标，考虑缩放
+    const center = screenToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    const x = center.x - 90 + (Math.random() * 40 - 20);
+    const y = center.y - 20 + (Math.random() * 40 - 20);
 
     const node = {
       id,
@@ -714,7 +800,19 @@
 
   // ── 拖拽 ──
   function handleMouseDown(e) {
-    if (e.target === el.canvas || e.target === el.svg || e.target.classList.contains('workflow-hint')) {
+    // 中键或空格+左键：启动平移（优先）
+    if (e.button === 1 || (e.button === 0 && state.spaceDown)) {
+      state.panning = {
+        startX: e.clientX,
+        startY: e.clientY,
+        origOffsetX: state.viewport.offsetX,
+        origOffsetY: state.viewport.offsetY
+      };
+      e.preventDefault();
+      return;
+    }
+    // 点击空白处取消选中
+    if (e.target === el.canvas || e.target === el.viewport || e.target === el.svg || e.target.classList.contains('workflow-hint')) {
       state.selectedNode = null;
       state.selectedEdge = null;
       document.querySelectorAll('.workflow-node').forEach(n => n.classList.remove('is-selected'));
@@ -736,12 +834,23 @@
   }
 
   function handleMouseMove(e) {
-    // 节点拖拽
+    // 平移
+    if (state.panning) {
+      const dx = e.clientX - state.panning.startX;
+      const dy = e.clientY - state.panning.startY;
+      state.viewport.offsetX = state.panning.origOffsetX + dx;
+      state.viewport.offsetY = state.panning.origOffsetY + dy;
+      applyViewport();
+      return;
+    }
+
+    // 节点拖拽（注意缩放：屏幕 delta 需除以 scale 才是画布坐标 delta）
     if (state.dragging) {
       const node = state.nodes.find(n => n.id === state.dragging.id);
       if (node) {
-        const dx = e.clientX - state.dragging.startX;
-        const dy = e.clientY - state.dragging.startY;
+        const scale = state.viewport.scale || 1;
+        const dx = (e.clientX - state.dragging.startX) / scale;
+        const dy = (e.clientY - state.dragging.startY) / scale;
         node.x = state.dragging.origX + dx;
         node.y = state.dragging.origY + dy;
         const div = document.getElementById(node.id);
@@ -756,7 +865,11 @@
     }
   }
 
-  function handleMouseUp() {
+  function handleMouseUp(e) {
+    if (state.panning) {
+      state.panning = null;
+      return;
+    }
     if (state.dragging) {
       // 拖拽结束：若位置变化了，把拖拽前快照压入历史栈
       const node = state.nodes.find(n => n.id === state.dragging.id);
@@ -795,8 +908,10 @@
 
     const fromX = fromNode.x + NODE_WIDTH + PORT_RADIUS; // 节点右边界 + 端口半径
     const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0, fromNode.id);
-    const toX = e.clientX - el.canvas.getBoundingClientRect().left;
-    const toY = e.clientY - el.canvas.getBoundingClientRect().top;
+    // 鼠标位置转画布坐标（svg 在 viewport 内，跟随缩放）
+    const pt = screenToCanvas(e.clientX, e.clientY);
+    const toX = pt.x;
+    const toY = pt.y;
     const d = `M ${fromX} ${fromY} C ${fromX + 80} ${fromY}, ${toX - 80} ${toY}, ${toX} ${toY}`;
     state.drawingEdge.path.setAttribute('d', d);
   }
@@ -1424,6 +1539,7 @@
     renderProps();
     el.logsBody.innerHTML = '';
     doClearResults();
+    resetZoom();
     markClean();
     showToast('画布已清空', 'success');
   }
@@ -1627,7 +1743,10 @@
     'clear-logs': doClearLogs,
     'clear-results': doClearResults,
     'delete-node': doDeleteNode,
-    'delete-edge': doDeleteEdge
+    'delete-edge': doDeleteEdge,
+    'zoom-in': () => setZoom(state.viewport.scale * 1.2),
+    'zoom-out': () => setZoom(state.viewport.scale / 1.2),
+    'zoom-reset': resetZoom
   };
 
   init();

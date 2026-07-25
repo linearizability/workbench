@@ -68,9 +68,16 @@
         </div>
 
         <div class="workflow-canvas" id="workflow-canvas">
-          <svg class="workflow-svg" id="workflow-svg"></svg>
-          <div class="workflow-nodes" id="workflow-nodes"></div>
-          <div class="workflow-hint">双击左侧工具添加到画布，拖拽端口连线</div>
+          <div class="workflow-viewport" id="workflow-viewport">
+            <svg class="workflow-svg" id="workflow-svg"></svg>
+            <div class="workflow-nodes" id="workflow-nodes"></div>
+          </div>
+          <div class="workflow-hint">双击左侧工具添加到画布，拖拽端口连线；滚轮缩放，中键/空格+拖拽平移</div>
+          <div class="workflow-zoom-controls">
+            <button class="btn btn-sm btn-secondary" data-action="zoom-in" title="放大 (+)">+</button>
+            <button class="btn btn-sm btn-secondary" data-action="zoom-out" title="缩小 (-)">−</button>
+            <button class="btn btn-sm btn-secondary" data-action="zoom-reset" title="重置缩放">1:1</button>
+          </div>
         </div>
       </div>
 
