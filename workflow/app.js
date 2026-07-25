@@ -25,6 +25,85 @@
   function markDirty() { state.dirty = true; }
   function markClean() { state.dirty = false; }
 
+  // ── 撤销/重做历史栈 ──
+  const history = {
+    undoStack: [],
+    redoStack: [],
+    maxDepth: 50
+  };
+
+  function snapshotState() {
+    return {
+      nodes: state.nodes.map(n => ({
+        id: n.id,
+        tool: n.tool,
+        name: n.name,
+        icon: n.icon,
+        x: n.x,
+        y: n.y,
+        params: JSON.parse(JSON.stringify(n.params || {})),
+        initialInputs: JSON.parse(JSON.stringify(n.initialInputs || {}))
+      })),
+      edges: state.edges.map(e => ({
+        id: e.id,
+        from: e.from,
+        to: e.to,
+        fromOutput: e.fromOutput,
+        toInput: e.toInput
+      })),
+      nextNodeId: state.nextNodeId,
+      nextEdgeId: state.nextEdgeId,
+      selectedNode: state.selectedNode,
+      selectedEdge: state.selectedEdge
+    };
+  }
+
+  function restoreState(snap) {
+    state.nodes = snap.nodes.map(n => ({ ...n }));
+    state.edges = snap.edges.map(e => ({ ...e }));
+    state.nextNodeId = snap.nextNodeId;
+    state.nextEdgeId = snap.nextEdgeId;
+    state.selectedNode = snap.selectedNode;
+    state.selectedEdge = snap.selectedEdge;
+    el.nodesLayer.innerHTML = '';
+    el.svg.innerHTML = '';
+    state.nodes.forEach(n => renderNode(n));
+    renderEdges();
+    renderProps();
+  }
+
+  function pushHistory() {
+    history.undoStack.push(snapshotState());
+    if (history.undoStack.length > history.maxDepth) history.undoStack.shift();
+    history.redoStack.length = 0; // 新操作清空 redo
+  }
+
+  function doUndo() {
+    if (!history.undoStack.length) {
+      showToast('无可撤销操作', 'info', 1500);
+      return;
+    }
+    const current = snapshotState();
+    const prev = history.undoStack.pop();
+    history.redoStack.push(current);
+    restoreState(prev);
+    markDirty();
+    showToast('已撤销', 'info', 1500);
+  }
+
+  function doRedo() {
+    if (!history.redoStack.length) {
+      showToast('无可重做操作', 'info', 1500);
+      return;
+    }
+    const current = snapshotState();
+    const next = history.redoStack.pop();
+    history.undoStack.push(current);
+    restoreState(next);
+    markDirty();
+    showToast('已重做', 'info', 1500);
+  }
+
   async function init() {
     cacheElements();
     await loadToolManifests();
@@ -276,6 +355,9 @@
     renderProps();
     doClearLogs();
     doClearResults();
+    // 重置历史栈（加载新工作流后不应允许 undo 回上一个工作流）
+    history.undoStack.length = 0;
+    history.redoStack.length = 0;
   }
 
   // ── 渲染左侧工具箱 ──
@@ -415,6 +497,18 @@
           }
         }
       }
+      // 撤销 / 重做
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) return;
+        e.preventDefault();
+        doUndo();
+      } else if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && (e.key === 'z' || e.key === 'Z')) || e.key === 'y' || e.key === 'Y')) {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) return;
+        e.preventDefault();
+        doRedo();
+      }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
         const active = document.activeElement;
         if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) return;
@@ -431,6 +525,7 @@
             params: JSON.parse(JSON.stringify(_clipboard.params || {})),
             initialInputs: JSON.parse(JSON.stringify(_clipboard.initialInputs || {}))
           };
+          pushHistory();
           state.nodes.push(node);
           renderNode(node);
           selectNode(newId);
@@ -463,6 +558,7 @@
       initialInputs: {}
     };
 
+    pushHistory();
     state.nodes.push(node);
     renderNode(node);
     selectNode(id);
@@ -553,7 +649,14 @@
       if (e.target.classList.contains('workflow-port')) return;
       e.stopPropagation();
       selectNode(node.id);
-      state.dragging = { id: node.id, startX: e.clientX, startY: e.clientY, origX: node.x, origY: node.y };
+      state.dragging = {
+        id: node.id,
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: node.x,
+        origY: node.y,
+        preDragSnapshot: snapshotState() // 拖拽前快照，mouseup 时若位置变了再 push
+      };
     });
 
     // hover 展开/收起时重新渲染连线
@@ -589,6 +692,7 @@
   }
 
   function removeNode(id) {
+    pushHistory();
     state.nodes = state.nodes.filter(n => n.id !== id);
     state.edges = state.edges.filter(e => e.from !== id && e.to !== id);
     const div = document.getElementById(id);
@@ -654,8 +758,15 @@
 
   function handleMouseUp() {
     if (state.dragging) {
-      // 拖拽结束，位置已变更
-      markDirty();
+      // 拖拽结束：若位置变化了，把拖拽前快照压入历史栈
+      const node = state.nodes.find(n => n.id === state.dragging.id);
+      const moved = node && (node.x !== state.dragging.origX || node.y !== state.dragging.origY);
+      if (moved && state.dragging.preDragSnapshot) {
+        history.undoStack.push(state.dragging.preDragSnapshot);
+        if (history.undoStack.length > history.maxDepth) history.undoStack.shift();
+        history.redoStack.length = 0;
+        markDirty();
+      }
     }
     state.dragging = null;
     if (state.drawingEdge) {
@@ -727,6 +838,7 @@
         fromOutput,
         toInput: toPort
       };
+      pushHistory();
       state.edges.push(edge);
     }
     cancelDrawingEdge();
@@ -826,6 +938,7 @@
   }
 
   function removeEdge(edgeId) {
+    pushHistory();
     const idx = state.edges.findIndex(e => e.id === edgeId);
     if (idx >= 0) state.edges.splice(idx, 1);
     if (state.selectedEdge === edgeId) state.selectedEdge = null;
@@ -901,8 +1014,10 @@
         const branch = sel.value;
         const target = state.edges.find(e => e.id === eid);
         if (target) {
+          pushHistory();
           target.fromOutput = branch;
           renderEdges();
+          markDirty();
         }
       });
     });
@@ -1063,6 +1178,7 @@
     el.props.querySelectorAll('[data-param]').forEach(input => {
       input.addEventListener('change', () => {
         const paramName = input.dataset.param;
+        pushHistory();
         node.params[paramName] = input.value;
         markDirty();
         // select 变更可能触发 visibleWhen，重新渲染面板
@@ -1074,10 +1190,27 @@
 
     // 绑定初始输入变更
     el.props.querySelectorAll('[data-input]').forEach(input => {
+      // focus 时记录原始值，change 时若变了就 push 历史
+      let originalValue = null;
+      input.addEventListener('focus', () => {
+        originalValue = input.value;
+      });
       input.addEventListener('input', () => {
         const inputName = input.dataset.input;
         node.initialInputs[inputName] = input.value;
         markDirty();
+      });
+      input.addEventListener('change', () => {
+        if (originalValue !== null && originalValue !== input.value) {
+          // 把原始值回写后 push，再恢复新值，让 undo 能回到原始值
+          const inputName = input.dataset.input;
+          const newVal = input.value;
+          input.value = originalValue;
+          node.initialInputs[inputName] = originalValue;
+          pushHistory();
+          input.value = newVal;
+          node.initialInputs[inputName] = newVal;
+        }
       });
     });
   }
@@ -1278,6 +1411,7 @@
   }
 
   function doClear() {
+    pushHistory();
     state.nodes = [];
     state.edges = [];
     state.selectedNode = null;
@@ -1483,6 +1617,8 @@
 
   const ACTIONS = {
     run: doRun,
+    undo: doUndo,
+    redo: doRedo,
     clear: doClear,
     save: doSave,
     load: doLoad,
