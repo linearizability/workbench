@@ -485,13 +485,22 @@
   const PORT_SPACING = 22;   // 端口间距（稍微拉开一点）
   const PORT_RADIUS = 5;    // 端口圆半径
 
-  function getPortY(portIndex, nodeId) {
+  // 判断节点是否处于"端口展开"状态（选中 / 正在连线 / hover）
+  // 注：hover 状态用 DOM classList 读取（hover 由 CSS :hover 也能处理，
+  //     但端口定位需要 JS 同步，所以仍依赖 is-hovered class）；
+  //     selected / connecting 用 state 判断避免读 DOM
+  function isNodeExpanded(nodeId) {
+    if (state.selectedNode === nodeId) return true;
+    if (state.drawingEdge && state.drawingEdge.fromId === nodeId) return true;
+    // hover 仍读 DOM（hover 频率低，可接受）
     const div = nodeId ? document.getElementById(nodeId) : null;
-    if (div) {
-      const isExpanded = div.classList.contains('is-selected') || div.classList.contains('is-connecting') || div.classList.contains('is-hovered');
-      if (!isExpanded) {
-        return NODE_HEADER_H / 2;
-      }
+    if (div && div.classList.contains('is-hovered')) return true;
+    return false;
+  }
+
+  function getPortY(portIndex, nodeId) {
+    if (!isNodeExpanded(nodeId)) {
+      return NODE_HEADER_H / 2;
     }
     return NODE_HEADER_H + PORT_START_Y + portIndex * PORT_SPACING + PORT_RADIUS;
   }

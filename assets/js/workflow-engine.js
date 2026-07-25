@@ -288,7 +288,7 @@
         return { output: { __conditionResult: result } };
       }
 
-      // 内置循环处理节点
+      // 内置循环处理节点（支持异步表达式）
       if (node.tool === '__foreach') {
         const items = Array.isArray(resolvedInput.items) ? resolvedInput.items : [];
         const expr = resolvedParams.expression || 'item';
@@ -296,7 +296,8 @@
           throw new Error('循环表达式包含禁用的标识符');
         }
         const sandbox = { Math, JSON, String, Number, Boolean, Array, Object, Date, isNaN, isFinite };
-        const results = items.map((item, index) => {
+        // 表达式可能返回 Promise，逐项 await
+        const mapped = items.map((item, index) => {
           try {
             const fn = new Function('item', 'index', 'sandbox', `with(sandbox){ return (${expr}); }`);
             return fn(item, index, sandbox);
@@ -304,6 +305,13 @@
             return { __error: e.message };
           }
         });
+        const results = await Promise.all(mapped.map(async (p) => {
+          try {
+            return await p;
+          } catch (e) {
+            return { __error: e.message };
+          }
+        }));
         return { output: { results } };
       }
 
