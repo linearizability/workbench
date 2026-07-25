@@ -15,7 +15,7 @@
     nextEdgeId: 1,
     dragging: null,       // { id, offsetX, offsetY }
     drawingEdge: null,    // { fromId, fromOutput, svgPath }
-    autoRun: { enabled: false, timerId: null, nextRun: null, countdownTimerId: null },
+    autoRun: { enabled: false, timerId: null, nextRun: null, countdownTimerId: null, cronJob: null },
     dirty: false,         // 自上次保存/加载以来是否有未持久化改动
     lastSavedName: null   // 最近一次保存/加载的工作流名称
   };
@@ -366,6 +366,9 @@
     window.addEventListener('beforeunload', (e) => {
       if (state.autoRun.timerId) clearTimeout(state.autoRun.timerId);
       if (state.autoRun.countdownTimerId) clearInterval(state.autoRun.countdownTimerId);
+      if (state.autoRun.cronJob) {
+        try { state.autoRun.cronJob.stop(); } catch (e) { /* 忽略 */ }
+      }
       if (state.dirty) {
         e.preventDefault();
         e.returnValue = '';
@@ -1359,7 +1362,17 @@
     // 启动倒计时刷新 interval
     if (!state.autoRun.countdownTimerId) {
       state.autoRun.countdownTimerId = setInterval(() => {
-        if (state.autoRun.enabled && state.autoRun.nextRun) {
+        if (!state.autoRun.enabled) return;
+        // cron 模式下，若 nextRun 已过期，从 cronJob 拉取下一次执行时间
+        if (state.autoRun.cronJob && state.autoRun.nextRun && Date.now() >= state.autoRun.nextRun) {
+          try {
+            const nextDt = state.autoRun.cronJob.nextRuns(1);
+            if (nextDt && nextDt.length) {
+              state.autoRun.nextRun = nextDt[0].getTime();
+            }
+          } catch (e) { /* 忽略 */ }
+        }
+        if (state.autoRun.nextRun) {
           updateAutoRunUI();
         }
       }, 1000);
@@ -1371,6 +1384,10 @@
     if (state.autoRun.timerId) {
       clearTimeout(state.autoRun.timerId);
       state.autoRun.timerId = null;
+    }
+    if (state.autoRun.cronJob) {
+      try { state.autoRun.cronJob.stop(); } catch (e) { /* 兼容老版 croner 无 stop 方法 */ }
+      state.autoRun.cronJob = null;
     }
     if (state.autoRun.countdownTimerId) {
       clearInterval(state.autoRun.countdownTimerId);
@@ -1385,43 +1402,51 @@
 
     const mode = el.autoRunMode ? el.autoRunMode.value : 'interval';
     const expr = el.autoRunExpr ? el.autoRunExpr.value.trim() : '5';
-    let delayMs;
 
     if (mode === 'interval') {
       const seconds = parseFloat(expr) || 5;
-      delayMs = Math.max(1000, seconds * 1000);
-    } else {
-      try {
-        if (typeof Cron === 'undefined') {
-          throw new Error('Croner 库未加载');
-        }
-        const job = new Cron(expr);
-        const runs = job.nextRuns(1);
-        if (!runs || !runs.length) {
-          throw new Error('无法计算下次执行时间');
-        }
-        delayMs = runs[0].getTime() - Date.now();
-        if (delayMs < 0) delayMs = 0;
-      } catch (e) {
-        showToast('Cron 表达式错误: ' + e.message, 'error');
-        stopAutoRun();
-        if (el.autoRunToggle) el.autoRunToggle.checked = false;
-        return;
-      }
+      const delayMs = Math.max(1000, seconds * 1000);
+      state.autoRun.nextRun = Date.now() + delayMs;
+      updateAutoRunUI();
+      state.autoRun.timerId = setTimeout(async () => {
+        if (!state.autoRun.enabled) return;
+        try { await doRun(); } catch (e) { /* doRun 内部已处理错误 */ }
+        scheduleNext();
+      }, delayMs);
+      return;
     }
 
-    state.autoRun.nextRun = Date.now() + delayMs;
-    updateAutoRunUI();
+    // cron 模式：优先用 croner 内置调度（无漂移），不可用时回退到 setTimeout
+    if (typeof Cron === 'undefined') {
+      showToast('Croner 库未加载', 'error');
+      stopAutoRun();
+      if (el.autoRunToggle) el.autoRunToggle.checked = false;
+      return;
+    }
 
-    state.autoRun.timerId = setTimeout(async () => {
-      if (!state.autoRun.enabled) return;
-      try {
-        await doRun();
-      } catch (e) {
-        // doRun 内部已处理错误
+    let job;
+    try {
+      // croner 支持传入回调，会自动按 cron 周期触发
+      job = new Cron(expr, { protect: true }, async () => {
+        if (!state.autoRun.enabled) return;
+        try { await doRun(); } catch (e) { /* 忽略，protect:true 会保证下一次仍触发 */ }
+      });
+    } catch (e) {
+      showToast('Cron 表达式错误: ' + e.message, 'error');
+      stopAutoRun();
+      if (el.autoRunToggle) el.autoRunToggle.checked = false;
+      return;
+    }
+
+    state.autoRun.cronJob = job;
+    // 仍要计算 nextRun 用于倒计时显示
+    try {
+      const nextDt = job.nextRuns(1);
+      if (nextDt && nextDt.length) {
+        state.autoRun.nextRun = nextDt[0].getTime();
       }
-      scheduleNext();
-    }, delayMs);
+    } catch (e) { /* 忽略 */ }
+    updateAutoRunUI();
   }
 
   function updateAutoRunUI() {
