@@ -116,8 +116,10 @@
     set(key, value) {
       try {
         localStorage.setItem(key, JSON.stringify(value));
+        return true;
       } catch (err) {
         console.error('Storage set error:', err);
+        return false;
       }
     },
 

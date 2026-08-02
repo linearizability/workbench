@@ -128,13 +128,15 @@
 
       try {
         const result = await this.executeNode(node, workflow);
-        this.states[nodeId] = result.output || {};
+        this.states[nodeId] = result.output ?? {};
+        const isSkipped = result.output?.__skipped === true;
         this.logs.push({
           nodeId,
           tool: node.tool,
-          status: 'success',
+          status: isSkipped ? 'skipped' : 'success',
           duration: Math.round(performance.now() - startTime),
-          output: result.output
+          output: result.output,
+          ...(isSkipped && { message: '上游条件不满足，跳过执行' })
         });
       } catch (err) {
         this.states[nodeId] = { __error: err.message };
@@ -216,8 +218,11 @@
 
     /**
      * 评估条件表达式（内置条件节点用）
-     * 使用 `with` 切换作用域到 sandbox，屏蔽对全局/window 的直接访问。
-     * 注：仍允许基本字面量与运算符，足够覆盖典型条件场景。
+     * 使用 `with` 切换作用域到 sandbox，提供常用全局对象。
+     * 安全说明：黑名单仅防止误用，无法防止原型链逃逸
+     * （如 `[].constructor.constructor('return this')()`）。
+     * 本工具面向本地开发环境，表达式由用户自己编写，
+     * 不具备服务端多用户安全保证。如需沙箱隔离请使用 iframe sandbox。
      */
     evaluateCondition(expression, input, params) {
       // 简单黑名单：禁止出现 window / document / globalThis / eval / Function / fetch 等
@@ -237,14 +242,21 @@
      * 执行单个节点
      */
     async executeNode(node, workflow) {
-      // 收集上游输入（含条件分支过滤）
+      // 收集上游输入（含条件分支过滤 + 跳过传播）
       const input = {};
       const incomingEdges = workflow.edges.filter(e => e.to === node.id);
       const inputSources = {}; // 记录每个 input 端口的来源，用于检测多上游覆盖
+      let skippedEdgeCount = 0;
       for (const edge of incomingEdges) {
         const upstreamOutput = this.states[edge.from];
         if (upstreamOutput && upstreamOutput.__error) {
           throw new Error(`上游节点 ${edge.from} 执行失败`);
+        }
+
+        // 跳过传播：若上游被跳过，本边也跳过
+        if (upstreamOutput && upstreamOutput.__skipped) {
+          skippedEdgeCount++;
+          continue;
         }
 
         // 条件分支过滤：若上游是条件节点且条件不匹配，则忽略该边
@@ -253,6 +265,7 @@
           const conditionResult = upstreamOutput?.__conditionResult;
           if ((edge.fromOutput === 'true' && !conditionResult) ||
               (edge.fromOutput === 'false' && conditionResult)) {
+            skippedEdgeCount++;
             continue;
           }
         }
@@ -296,10 +309,16 @@
           throw new Error('循环表达式包含禁用的标识符');
         }
         const sandbox = { Math, JSON, String, Number, Boolean, Array, Object, Date, isNaN, isFinite };
+        // 编译一次，循环内复用（避免每个元素 new Function）
+        let fn;
+        try {
+          fn = new Function('item', 'index', 'sandbox', `with(sandbox){ return (${expr}); }`);
+        } catch (e) {
+          return { output: { results: items.map(() => ({ __error: e.message })) } };
+        }
         // 表达式可能返回 Promise，逐项 await
         const mapped = items.map((item, index) => {
           try {
-            const fn = new Function('item', 'index', 'sandbox', `with(sandbox){ return (${expr}); }`);
             return fn(item, index, sandbox);
           } catch (e) {
             return { __error: e.message };
@@ -315,13 +334,10 @@
         return { output: { results } };
       }
 
-      // 若所有入边均来自条件节点且不匹配，则跳过执行
-      if (incomingEdges.length > 0 && Object.keys(input).length === 0 &&
-          incomingEdges.every(e => {
-            const fromNode = this._nodeMap[e.from];
-            return fromNode && fromNode.tool === '__condition';
-          })) {
-        return { output: {} };
+      // 跳过传播：若所有入边均被跳过（条件不匹配或上游被跳过），且无手动输入，则跳过本节点
+      if (incomingEdges.length > 0 && skippedEdgeCount === incomingEdges.length &&
+          Object.keys(resolvedInput).length === 0) {
+        return { output: { __skipped: true } };
       }
 
       // 普通节点执行

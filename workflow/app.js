@@ -21,7 +21,8 @@
     // 画布平移/缩放
     viewport: { scale: 1, offsetX: 0, offsetY: 0 },
     panning: null,        // { startX, startY, origOffsetX, origOffsetY }
-    spaceDown: false      // 空格键是否按下（用于平移模式）
+    spaceDown: false,     // 空格键是否按下（用于平移模式）
+    running: false        // 工作流是否正在执行（防重入）
   };
 
   const TOOL_MANIFESTS = []; // 已加载的工具元数据
@@ -78,6 +79,21 @@
     };
   }
 
+  // 计算画布"可见区域"的中心屏幕坐标（画布 rect 与浏览器视口的交集）
+  // 解决：画布元素可能比视口更高（min-height:100vh + 底部面板），
+  //       直接用 rect 中心会导致新节点落在可见区域之外
+  function getVisibleCanvasCenter() {
+    const rect = el.canvas.getBoundingClientRect();
+    const visibleLeft = Math.max(rect.left, 0);
+    const visibleRight = Math.min(rect.right, window.innerWidth);
+    const visibleTop = Math.max(rect.top, 0);
+    const visibleBottom = Math.min(rect.bottom, window.innerHeight);
+    return {
+      x: (visibleLeft + visibleRight) / 2,
+      y: (visibleTop + visibleBottom) / 2
+    };
+  }
+
   // ── 撤销/重做历史栈 ──
   const history = {
     undoStack: [],
@@ -112,6 +128,7 @@
   }
 
   function restoreState(snap) {
+    state.dragging = null;
     state.nodes = snap.nodes.map(n => ({ ...n }));
     state.edges = snap.edges.map(e => ({ ...e }));
     state.nextNodeId = snap.nextNodeId;
@@ -120,6 +137,7 @@
     state.selectedEdge = snap.selectedEdge;
     el.nodesLayer.innerHTML = '';
     el.svg.innerHTML = '';
+    _edgePathMap.clear();
     state.nodes.forEach(n => renderNode(n));
     renderEdges();
     renderProps();
@@ -182,6 +200,7 @@
     el.autoRunMode = document.getElementById('auto-run-mode');
     el.autoRunExpr = document.getElementById('auto-run-expr');
     el.autoRunCountdown = document.getElementById('auto-run-countdown');
+    el.runBtn = document.querySelector('[data-action="run"]');
   }
 
   // ── 加载工具清单（manifest 已由 index.html 静态加载，此处仅做组装）──
@@ -227,11 +246,7 @@
   const AUTO_SAVE_KEY = 'workflow_auto_save';
 
   function getSavedWorkflows() {
-    try {
-      return storage.get(SAVED_WORKFLOWS_KEY, {});
-    } catch {
-      return {};
-    }
+    return storage.get(SAVED_WORKFLOWS_KEY, {}) || {};
   }
 
   function saveWorkflowLocal(name) {
@@ -257,13 +272,11 @@
     };
     const saved = getSavedWorkflows();
     saved[name] = { data, savedAt: Date.now() };
-    try {
-      storage.set(SAVED_WORKFLOWS_KEY, saved);
-      storage.set(AUTO_SAVE_KEY, name);
-    } catch (err) {
-      showToast('本地存储已满或不可用: ' + (err.message || err), 'error');
+    if (!storage.set(SAVED_WORKFLOWS_KEY, saved)) {
+      showToast('本地存储已满或不可用，请清理浏览器存储后重试', 'error');
       return;
     }
+    storage.set(AUTO_SAVE_KEY, name);
     updateSavedList();
     state.lastSavedName = name;
     markClean();
@@ -405,6 +418,7 @@
     // 重新渲染
     el.nodesLayer.innerHTML = '';
     el.svg.innerHTML = '';
+    _edgePathMap.clear();
     state.nodes.forEach(n => renderNode(n));
     renderEdges();
     renderProps();
@@ -431,8 +445,8 @@
       return;
     }
     el.toolList.innerHTML = filtered.map(t => `
-      <div class="workflow-tool-item" data-tool="${t.id}" title="${escapeHtml(t.description || '')}">
-        <span class="workflow-tool-icon">${t.icon || '🔧'}</span>
+      <div class="workflow-tool-item" data-tool="${escapeHtml(t.id)}" title="${escapeHtml(t.description || '')}">
+        <span class="workflow-tool-icon">${escapeHtml(t.icon || '🔧')}</span>
         <span class="workflow-tool-name">${escapeHtml(t.name)}</span>
       </div>
     `).join('');
@@ -493,18 +507,12 @@
       el.autoRunMode.addEventListener('change', () => {
         const mode = el.autoRunMode.value;
         if (el.autoRunExpr) el.autoRunExpr.placeholder = mode === 'interval' ? '5' : '0 9 * * *';
-        if (state.autoRun.enabled) {
-          if (state.autoRun.timerId) clearTimeout(state.autoRun.timerId);
-          scheduleNext();
-        }
+        if (state.autoRun.enabled) scheduleNext();
       });
     }
     if (el.autoRunExpr) {
       el.autoRunExpr.addEventListener('change', () => {
-        if (state.autoRun.enabled) {
-          if (state.autoRun.timerId) clearTimeout(state.autoRun.timerId);
-          scheduleNext();
-        }
+        if (state.autoRun.enabled) scheduleNext();
       });
     }
 
@@ -513,7 +521,7 @@
       if (state.autoRun.timerId) clearTimeout(state.autoRun.timerId);
       if (state.autoRun.countdownTimerId) clearInterval(state.autoRun.countdownTimerId);
       if (state.autoRun.cronJob) {
-        try { state.autoRun.cronJob.stop(); } catch (e) { /* 忽略 */ }
+        try { state.autoRun.cronJob.stop(); } catch (err) { /* 忽略 */ }
       }
       if (state.dirty) {
         e.preventDefault();
@@ -576,6 +584,7 @@
               params: node.params,
               initialInputs: node.initialInputs
             }));
+            _pasteOffset = 0;
             showToast('节点已复制', 'info', 1500);
           }
         }
@@ -596,16 +605,18 @@
         const active = document.activeElement;
         if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) return;
         if (_clipboard) {
+          _pasteOffset++;
+          const offset = _pasteOffset * 20;
           const newId = 'n' + state.nextNodeId++;
-          const rect = el.canvas.getBoundingClientRect();
-          const center = screenToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          const visCenter = getVisibleCanvasCenter();
+          const center = screenToCanvas(visCenter.x, visCenter.y);
           const node = {
             id: newId,
             tool: _clipboard.tool,
             name: _clipboard.name,
             icon: _clipboard.icon,
-            x: center.x - 90 + (Math.random() * 40 - 20),
-            y: center.y - 20 + (Math.random() * 40 - 20),
+            x: center.x - NODE_WIDTH / 2 + offset,
+            y: center.y - NODE_HEADER_H / 2 + offset,
             params: JSON.parse(JSON.stringify(_clipboard.params || {})),
             initialInputs: JSON.parse(JSON.stringify(_clipboard.initialInputs || {}))
           };
@@ -621,6 +632,8 @@
   }
 
   let _clipboard = null;
+  let _pasteOffset = 0;
+  const _edgePathMap = new Map(); // edgeId → SVG path 元素缓存（增量更新，避免每帧销毁重建）
 
   // ── 节点操作 ──
   function addNode(toolId) {
@@ -628,11 +641,11 @@
     if (!manifest) return;
 
     const id = 'n' + state.nextNodeId++;
-    const rect = el.canvas.getBoundingClientRect();
-    // 画布中心点（屏幕坐标）转画布坐标，考虑缩放
-    const center = screenToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2);
-    const x = center.x - 90 + (Math.random() * 40 - 20);
-    const y = center.y - 20 + (Math.random() * 40 - 20);
+    // 使用画布可见区域中心（而非整个画布元素中心），确保节点落在用户看得见的位置
+    const visCenter = getVisibleCanvasCenter();
+    const center = screenToCanvas(visCenter.x, visCenter.y);
+    const x = center.x - NODE_WIDTH / 2 + (Math.random() * 80 - 40);
+    const y = center.y - NODE_HEADER_H / 2 + (Math.random() * 80 - 40);
 
     const node = {
       id,
@@ -660,30 +673,17 @@
     return params;
   }
 
-  // 节点常量
-  const NODE_WIDTH = 180;
-  const NODE_HEADER_H = 40;
-  const PORT_START_Y = 14;   // 端口区内起始偏移（上下各留 14px padding）
-  const PORT_SPACING = 22;   // 端口间距（稍微拉开一点）
-  const PORT_RADIUS = 5;    // 端口圆半径
+  // 节点常量（适度放大，约 1.3x）
+  const NODE_WIDTH = 240;
+  const NODE_HEADER_H = 52;
+  const PORT_START_Y = 18;   // 端口区内起始偏移
+  const PORT_SPACING = 30;   // 端口间距
+  const PORT_RADIUS = 7;     // 端口圆半径
 
   // 判断节点是否处于"端口展开"状态（选中 / 正在连线 / hover）
   // 注：hover 状态用 DOM classList 读取（hover 由 CSS :hover 也能处理，
-  //     但端口定位需要 JS 同步，所以仍依赖 is-hovered class）；
-  //     selected / connecting 用 state 判断避免读 DOM
-  function isNodeExpanded(nodeId) {
-    if (state.selectedNode === nodeId) return true;
-    if (state.drawingEdge && state.drawingEdge.fromId === nodeId) return true;
-    // hover 仍读 DOM（hover 频率低，可接受）
-    const div = nodeId ? document.getElementById(nodeId) : null;
-    if (div && div.classList.contains('is-hovered')) return true;
-    return false;
-  }
-
-  function getPortY(portIndex, nodeId) {
-    if (!isNodeExpanded(nodeId)) {
-      return NODE_HEADER_H / 2;
-    }
+  // 端口 Y 坐标（始终返回真实位置，无折叠/展开分支）
+  function getPortY(portIndex) {
     return NODE_HEADER_H + PORT_START_Y + portIndex * PORT_SPACING + PORT_RADIUS;
   }
 
@@ -697,37 +697,40 @@
     const outputs = manifest?.outputs || [];
 
     const inputPorts = inputs.map((p, i) => `
-      <div class="workflow-port workflow-port-in" data-port="${p.name}" title="${p.label}"
+      <div class="workflow-port workflow-port-in" data-port="${escapeHtml(p.name)}" title="${escapeHtml(p.label)}"
            style="top:${PORT_START_Y + i * PORT_SPACING}px">
-        <span class="workflow-port-label">${p.label}</span>
+        <span class="workflow-port-label">${escapeHtml(p.label)}</span>
       </div>
     `).join('');
 
     const outputPorts = outputs.map((p, i) => `
-      <div class="workflow-port workflow-port-out" data-port="${p.name}" title="${p.label}"
+      <div class="workflow-port workflow-port-out" data-port="${escapeHtml(p.name)}" title="${escapeHtml(p.label)}"
            style="top:${PORT_START_Y + i * PORT_SPACING}px">
-        <span class="workflow-port-label">${p.label}</span>
+        <span class="workflow-port-label">${escapeHtml(p.label)}</span>
       </div>
     `).join('');
 
     const maxPorts = Math.max(inputs.length, outputs.length);
-    const portsHeight = maxPorts * PORT_SPACING + PORT_START_Y * 2;
+    const portsHeight = maxPorts > 0 ? maxPorts * PORT_SPACING + PORT_START_Y * 2 : 0;
 
     const div = document.createElement('div');
     div.className = 'workflow-node';
     div.id = node.id;
     div.style.transform = `translate(${node.x}px, ${node.y}px)`;
     div.dataset.maxPorts = maxPorts;
+    const portsHtml = maxPorts > 0
+      ? `<div class="workflow-node-ports" style="height: ${portsHeight}px;">
+          ${inputPorts}
+          ${outputPorts}
+        </div>`
+      : '';
     div.innerHTML = `
       <div class="workflow-node-header">
-        <span class="workflow-node-icon">${node.icon}</span>
-        <span class="workflow-node-name">${node.name}</span>
+        <span class="workflow-node-icon">${escapeHtml(node.icon)}</span>
+        <span class="workflow-node-name">${escapeHtml(node.name)}</span>
         <span class="workflow-node-status"></span>
       </div>
-      <div class="workflow-node-ports" style="height: ${portsHeight}px;">
-        ${inputPorts}
-        ${outputPorts}
-      </div>
+      ${portsHtml}
     `;
 
     // 节点点击选中
@@ -743,16 +746,6 @@
         origY: node.y,
         preDragSnapshot: snapshotState() // 拖拽前快照，mouseup 时若位置变了再 push
       };
-    });
-
-    // hover 展开/收起时重新渲染连线
-    div.addEventListener('mouseenter', () => {
-      div.classList.add('is-hovered');
-      scheduleRenderEdges();
-    });
-    div.addEventListener('mouseleave', () => {
-      div.classList.remove('is-hovered');
-      scheduleRenderEdges();
     });
 
     // 端口 mousedown 开始连线
@@ -817,7 +810,6 @@
       state.selectedEdge = null;
       document.querySelectorAll('.workflow-node').forEach(n => n.classList.remove('is-selected'));
       el.svg.querySelectorAll('.workflow-edge').forEach(p => p.classList.remove('is-selected'));
-      scheduleRenderEdges();
       renderProps();
     }
   }
@@ -907,12 +899,12 @@
     const fromOutputIndex = (fromManifest?.outputs || []).findIndex(o => o.name === state.drawingEdge.fromOutput);
 
     const fromX = fromNode.x + NODE_WIDTH + PORT_RADIUS; // 节点右边界 + 端口半径
-    const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0, fromNode.id);
+    const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0);
     // 鼠标位置转画布坐标（svg 在 viewport 内，跟随缩放）
     const pt = screenToCanvas(e.clientX, e.clientY);
     const toX = pt.x;
     const toY = pt.y;
-    const d = `M ${fromX} ${fromY} C ${fromX + 80} ${fromY}, ${toX - 80} ${toY}, ${toX} ${toY}`;
+    const d = `M ${fromX} ${fromY} C ${fromX + 160} ${fromY}, ${toX - 160} ${toY}, ${toX} ${toY}`;
     state.drawingEdge.path.setAttribute('d', d);
   }
 
@@ -1003,10 +995,10 @@
   }
 
   function renderEdges() {
-    // 清除现有连线（保留 drawing 中的）
-    el.svg.querySelectorAll('.workflow-edge:not(.workflow-edge-drawing)').forEach(p => p.remove());
+    const currentEdgeIds = new Set();
 
     state.edges.forEach(edge => {
+      currentEdgeIds.add(edge.id);
       const fromNode = state.nodes.find(n => n.id === edge.from);
       const toNode = state.nodes.find(n => n.id === edge.to);
       if (!fromNode || !toNode) return;
@@ -1018,28 +1010,43 @@
       const toInputIndex = (toManifest?.inputs || []).findIndex(i => i.name === edge.toInput);
 
       const fromX = fromNode.x + NODE_WIDTH + PORT_RADIUS;
-      const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0, fromNode.id);
+      const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0);
       const toX = toNode.x - PORT_RADIUS;
-      const toY = toNode.y + getPortY(toInputIndex >= 0 ? toInputIndex : 0, toNode.id);
+      const toY = toNode.y + getPortY(toInputIndex >= 0 ? toInputIndex : 0);
 
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      let path = _edgePathMap.get(edge.id);
+      if (!path) {
+        // 新边：创建 path 元素，绑定一次事件
+        path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('data-edge-id', edge.id);
+        path.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectEdge(edge.id);
+        });
+        el.svg.appendChild(path);
+        _edgePathMap.set(edge.id, path);
+      }
+
+      // 更新 class（条件分支可能切换 true/false）
       let edgeClass = 'workflow-edge';
       if (fromNode.tool === '__condition') {
         edgeClass += edge.fromOutput === 'true' ? ' workflow-edge-true' : ' workflow-edge-false';
       }
       path.setAttribute('class', edgeClass);
-      path.setAttribute('data-edge-id', edge.id);
-      path.setAttribute('d', `M ${fromX} ${fromY} C ${fromX + 80} ${fromY}, ${toX - 80} ${toY}, ${toX} ${toY}`);
-      path.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectEdge(edge.id);
-      });
-      el.svg.appendChild(path);
+      path.setAttribute('d', `M ${fromX} ${fromY} C ${fromX + 160} ${fromY}, ${toX - 160} ${toY}, ${toX} ${toY}`);
+    });
+
+    // 删除已不存在的边对应的 path
+    _edgePathMap.forEach((path, edgeId) => {
+      if (!currentEdgeIds.has(edgeId)) {
+        path.remove();
+        _edgePathMap.delete(edgeId);
+      }
     });
 
     // 恢复选中状态
     if (state.selectedEdge !== null) {
-      const path = el.svg.querySelector(`[data-edge-id="${state.selectedEdge}"]`);
+      const path = _edgePathMap.get(state.selectedEdge);
       if (path) path.classList.add('is-selected');
     }
   }
@@ -1072,6 +1079,9 @@
       if (node.__lastError) {
         badge.textContent = '✗';
         badge.className = 'workflow-node-status is-error';
+      } else if (node.__lastResult && node.__lastResult.__skipped) {
+        badge.textContent = '–';
+        badge.className = 'workflow-node-status is-skipped';
       } else if (node.__lastResult) {
         badge.textContent = '✓';
         badge.className = 'workflow-node-status is-success';
@@ -1098,13 +1108,13 @@
         <button class="btn btn-sm btn-danger" data-action="delete-edge">删除</button>
       </div>
       <div class="workflow-prop-row">
-        <span class="workflow-prop-port">从：${escapeHtml(fromNode?.name || edge.from)} (${edge.from})</span>
+        <span class="workflow-prop-port">从：${escapeHtml(fromNode?.name || edge.from)} (${escapeHtml(edge.from)})</span>
       </div>
       <div class="workflow-prop-row">
-        <span class="workflow-prop-port">到：${escapeHtml(toNode?.name || edge.to)} (${edge.to})</span>
+        <span class="workflow-prop-port">到：${escapeHtml(toNode?.name || edge.to)} (${escapeHtml(edge.to)})</span>
       </div>
       <div class="workflow-prop-row">
-        <span class="workflow-prop-port">${edge.fromOutput} → ${edge.toInput}</span>
+        <span class="workflow-prop-port">${escapeHtml(edge.fromOutput)} → ${escapeHtml(edge.toInput)}</span>
       </div>
     `;
 
@@ -1155,8 +1165,9 @@
 
     let html = `
       <div class="workflow-props-header">
-        <span class="workflow-props-icon">${node.icon}</span>
-        <span class="workflow-props-name">${node.name} <span style="color:var(--color-text-muted);font-weight:400;font-size:0.85em;">(${node.id})</span></span>
+        <span class="workflow-props-icon">${escapeHtml(node.icon)}</span>
+        <input type="text" class="workflow-props-name-input" data-node-name value="${escapeHtml(node.name)}" placeholder="${escapeHtml(node.tool)}">
+        <span class="workflow-props-node-id">${escapeHtml(node.id)}</span>
         <button class="btn btn-sm btn-danger" data-action="delete-node">删除</button>
       </div>
     `;
@@ -1174,20 +1185,20 @@
         if (p.type === 'select') {
           html += `
             <div class="workflow-prop-row">
-              <label class="workflow-prop-label">${p.label}</label>
-              <select class="workflow-prop-input" data-param="${p.name}">
+              <label class="workflow-prop-label">${escapeHtml(p.label)}</label>
+              <select class="workflow-prop-input" data-param="${escapeHtml(p.name)}">
                 ${p.options.map(o => {
                   const optVal = typeof o === 'object' ? o.value : o;
                   const optLabel = typeof o === 'object' ? o.label : o;
-                  return `<option value="${optVal}" ${optVal === val ? 'selected' : ''}>${optLabel}</option>`;
+                  return `<option value="${escapeHtml(optVal)}" ${optVal === val ? 'selected' : ''}>${escapeHtml(optLabel)}</option>`;
                 }).join('')}
               </select>
             </div>`;
         } else {
           html += `
             <div class="workflow-prop-row">
-              <label class="workflow-prop-label">${p.label}</label>
-              <input type="text" class="workflow-prop-input" data-param="${p.name}" value="${val}" placeholder="支持 {{节点ID.字段名}} 表达式引用">
+              <label class="workflow-prop-label">${escapeHtml(p.label)}</label>
+              <input type="text" class="workflow-prop-input" data-param="${escapeHtml(p.name)}" value="${escapeHtml(val)}" placeholder="支持 {{节点ID.字段名}} 表达式引用">
             </div>`;
         }
       });
@@ -1201,14 +1212,14 @@
         if (connected) {
           html += `
             <div class="workflow-prop-row">
-              <span class="workflow-prop-port is-connected">${i.label}（已连接上游）</span>
+              <span class="workflow-prop-port is-connected">${escapeHtml(i.label)}（已连接上游）</span>
             </div>`;
         } else {
           const val = node.initialInputs[i.name] ?? '';
           html += `
             <div class="workflow-prop-row">
-              <label class="workflow-prop-label">${i.label}</label>
-              <textarea class="workflow-prop-input workflow-prop-textarea" data-input="${i.name}" rows="4" placeholder="输入初始值，支持 {{节点ID.字段名}} 表达式引用">${escapeHtml(val)}</textarea>
+              <label class="workflow-prop-label">${escapeHtml(i.label)}</label>
+              <textarea class="workflow-prop-input workflow-prop-textarea" data-input="${escapeHtml(i.name)}" rows="4" placeholder="输入初始值，支持 {{节点ID.字段名}} 表达式引用">${escapeHtml(val)}</textarea>
             </div>`;
         }
       });
@@ -1221,7 +1232,7 @@
         const connected = state.edges.some(e => e.from === node.id && e.fromOutput === o.name);
         html += `
           <div class="workflow-prop-row">
-            <span class="workflow-prop-port ${connected ? 'is-connected' : ''}">${o.label}</span>
+            <span class="workflow-prop-port ${connected ? 'is-connected' : ''}">${escapeHtml(o.label)}</span>
           </div>`;
       });
     }
@@ -1268,12 +1279,12 @@
           if (Array.isArray(val)) {
             html += `
               <div class="workflow-prop-row">
-                <span class="workflow-prop-port">${key} — ${val.length} 项（供下游节点使用）</span>
+                <span class="workflow-prop-port">${escapeHtml(key)} — ${val.length} 项（供下游节点使用）</span>
               </div>`;
           } else if (typeof val === 'object' && val !== null) {
             html += `
               <div class="workflow-prop-row">
-                <label class="workflow-prop-label">${key}</label>
+                <label class="workflow-prop-label">${escapeHtml(key)}</label>
                 <pre class="workflow-result-code"><code>${escapeHtml(JSON.stringify(val, null, 2))}</code></pre>
               </div>`;
           }
@@ -1328,57 +1339,98 @@
         }
       });
     });
+
+    // 绑定节点重命名
+    el.props.querySelectorAll('[data-node-name]').forEach(input => {
+      let originalName = null;
+      input.addEventListener('focus', () => {
+        originalName = input.value;
+      });
+      input.addEventListener('change', () => {
+        const newName = input.value.trim();
+        if (newName && originalName !== null && newName !== originalName) {
+          pushHistory();
+          node.name = newName;
+          // 同步更新画布上的节点名称
+          const div = document.getElementById(node.id);
+          if (div) {
+            const nameEl = div.querySelector('.workflow-node-name');
+            if (nameEl) nameEl.textContent = newName;
+          }
+          markDirty();
+        } else if (!newName) {
+          input.value = originalName;
+        }
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          input.blur();
+        }
+      });
+    });
   }
 
   // ── 运行 ──
   async function doRun() {
+    if (state.running) { showToast('工作流正在执行中', 'warning', 1500); return; }
     if (!state.nodes.length) { showToast('画布上没有节点', 'warning'); return; }
 
-    el.logsBody.innerHTML = '<div class="workflow-log-item is-info">开始执行工作流…</div>';
+    state.running = true;
+    if (el.runBtn) { el.runBtn.disabled = true; el.runBtn.textContent = '执行中…'; }
 
-    // 清除旧结果状态
-    state.nodes.forEach(n => { n.__lastResult = null; n.__lastError = null; });
-
-    const workflow = {
-      nodes: state.nodes.map(n => ({ id: n.id, tool: n.tool, params: n.params, initialInputs: n.initialInputs })),
-      edges: state.edges.map(e => ({ ...e }))
-    };
-
-    const engine = new window.WorkflowEngine();
-    let result;
     try {
-      result = await engine.run(workflow, { continueOnError: false });
-    } catch (err) {
-      appendLog(`执行启动失败: ${err.message}`, 'error');
-      showToast(err.message, 'error');
-      return;
-    }
+      el.logsBody.innerHTML = '<div class="workflow-log-item is-info">开始执行工作流…</div>';
 
-    // 将引擎日志回填到节点状态
-    result.logs.forEach(log => {
-      if (log.nodeId === '__engine') {
-        // 引擎自身的 warning 日志（表达式未命中、多上游覆盖等）
-        appendLog(`[engine] ${log.message}`, log.status === 'warning' ? 'warning' : 'info');
+      // 清除旧结果状态
+      state.nodes.forEach(n => { n.__lastResult = null; n.__lastError = null; });
+      updateNodeStatusBadges();
+
+      const workflow = {
+        nodes: state.nodes.map(n => ({ id: n.id, tool: n.tool, params: n.params, initialInputs: n.initialInputs })),
+        edges: state.edges.map(e => ({ ...e }))
+      };
+
+      const engine = new window.WorkflowEngine();
+      let result;
+      try {
+        result = await engine.run(workflow, { continueOnError: false });
+      } catch (err) {
+        appendLog(`执行启动失败: ${err.message}`, 'error');
+        showToast(err.message, 'error');
         return;
       }
-      const node = state.nodes.find(n => n.id === log.nodeId);
-      if (node) {
-        node.__lastResult = log.output;
-        node.__lastError = log.error || null;
+
+      // 将引擎日志回填到节点状态
+      result.logs.forEach(log => {
+        if (log.nodeId === '__engine') {
+          appendLog(`[engine] ${log.message}`, log.status === 'warning' ? 'warning' : 'info');
+          return;
+        }
+        const node = state.nodes.find(n => n.id === log.nodeId);
+        if (node) {
+          node.__lastResult = log.output;
+          node.__lastError = log.error || null;
+        }
+        const statusText = log.status === 'success' ? '成功' :
+                            log.status === 'skipped' ? '跳过' :
+                            log.status === 'warning' ? '警告' : '失败';
+        appendLog(`[${log.nodeId}] ${log.tool} — ${statusText} (${log.duration}ms)`);
+      });
+
+      updateNodeStatusBadges();
+      renderProps();
+      renderFinalResults(engine);
+
+      if (result.error) {
+        appendLog(`执行中断: ${result.error}`, 'error');
+        showToast(result.error, 'error');
+      } else {
+        showToast('工作流执行完成', 'success');
       }
-      const statusText = log.status === 'success' ? '成功' : (log.status === 'warning' ? '警告' : '失败');
-      appendLog(`[${log.nodeId}] ${log.tool} — ${statusText} (${log.duration}ms)`);
-    });
-
-    updateNodeStatusBadges();
-    renderProps();
-    renderFinalResults(engine);
-
-    if (result.error) {
-      appendLog(`执行中断: ${result.error}`, 'error');
-      showToast(result.error, 'error');
-    } else {
-      showToast('工作流执行完成', 'success');
+    } finally {
+      state.running = false;
+      if (el.runBtn) { el.runBtn.disabled = false; el.runBtn.textContent = '运行'; }
     }
   }
 
@@ -1436,8 +1488,8 @@
     return `
       <div class="workflow-result-item">
         <div class="workflow-result-item-header">
-          <span class="workflow-result-item-icon">${node.icon}</span>
-          <span class="workflow-result-item-name">${escapeHtml(toolName)} (${node.id})</span>
+        <span class="workflow-result-item-icon">${escapeHtml(node.icon)}</span>
+        <span class="workflow-result-item-name">${escapeHtml(toolName)} (${escapeHtml(node.id)})</span>
           <span class="workflow-result-item-status ${statusClass}">${statusText}</span>
         </div>
         <div class="workflow-result-item-body">${bodyHtml}</div>
@@ -1526,6 +1578,8 @@
   }
 
   function doClear() {
+    stopAutoRun();
+    if (el.autoRunToggle) el.autoRunToggle.checked = false;
     pushHistory();
     state.nodes = [];
     state.edges = [];
@@ -1536,12 +1590,105 @@
     state.lastSavedName = null;
     el.nodesLayer.innerHTML = '';
     el.svg.innerHTML = '';
+    _edgePathMap.clear();
     renderProps();
     el.logsBody.innerHTML = '';
     doClearResults();
     resetZoom();
-    markClean();
+    markDirty();
     showToast('画布已清空', 'success');
+  }
+
+  // ── 自动布局：Kahn 拓扑分层 + 同层竖向居中 ──
+  function autoLayout() {
+    if (!state.nodes.length) {
+      showToast('画布上没有节点', 'warning');
+      return;
+    }
+
+    pushHistory();
+
+    // 1. 计算入度和邻接表
+    const inDegree = {};
+    const outAdj = {};
+    state.nodes.forEach(n => { inDegree[n.id] = 0; outAdj[n.id] = []; });
+    state.edges.forEach(e => {
+      if (outAdj[e.from]) {
+        outAdj[e.from].push(e.to);
+        inDegree[e.to] = (inDegree[e.to] || 0) + 1;
+      }
+    });
+
+    // 2. Kahn 分层 BFS
+    const layers = [];
+    let currentLayer = state.nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
+    const processed = new Set();
+
+    while (currentLayer.length > 0) {
+      layers.push(currentLayer);
+      currentLayer.forEach(id => processed.add(id));
+      const next = [];
+      for (const id of currentLayer) {
+        for (const target of (outAdj[id] || [])) {
+          inDegree[target]--;
+          if (inDegree[target] === 0 && !processed.has(target)) {
+            next.push(target);
+          }
+        }
+      }
+      currentLayer = next;
+    }
+
+    // 处理环中的节点（Kahn 未覆盖的）— 放到最后一层
+    const unprocessed = state.nodes.filter(n => !processed.has(n.id));
+    if (unprocessed.length > 0) {
+      layers.push(unprocessed.map(n => n.id));
+    }
+
+    // 3. 按层排列：X = layer * LAYER_SPACING，Y = 层内累加
+    const LAYER_SPACING = NODE_WIDTH + 100;  // 层间距（节点宽 + gap）
+    const NODE_GAP_Y = 40;                    // 同层节点竖向间距
+    const START_X = 60;
+    const START_Y = 40;
+
+    const nodeMap = {};
+    state.nodes.forEach(n => { nodeMap[n.id] = n; });
+
+    layers.forEach((layer, layerIdx) => {
+      // 计算本层总高度，用于居中
+      let totalHeight = 0;
+      const heights = layer.map(id => {
+        const node = nodeMap[id];
+        const manifest = TOOL_MANIFESTS.find(t => t.id === node.tool);
+        const maxPorts = Math.max(
+          (manifest?.inputs || []).length,
+          (manifest?.outputs || []).length
+        );
+        const h = maxPorts > 0
+          ? NODE_HEADER_H + maxPorts * PORT_SPACING + PORT_START_Y * 2
+          : NODE_HEADER_H;
+        totalHeight += h;
+        return h;
+      });
+      totalHeight += (layer.length - 1) * NODE_GAP_Y;
+
+      let y = START_Y - totalHeight / 2 + 100; // 略偏下，留出顶部空间
+      layer.forEach((id, i) => {
+        const node = nodeMap[id];
+        node.x = START_X + layerIdx * LAYER_SPACING;
+        node.y = y;
+        y += heights[i] + NODE_GAP_Y;
+      });
+    });
+
+    // 4. 应用新坐标
+    state.nodes.forEach(n => {
+      const div = document.getElementById(n.id);
+      if (div) div.style.transform = `translate(${n.x}px, ${n.y}px)`;
+    });
+    renderEdges();
+    markDirty();
+    showToast('已自动排列 ' + state.nodes.length + ' 个节点', 'success');
   }
 
   function doClearLogs() {
@@ -1659,6 +1806,13 @@
   function scheduleNext() {
     if (!state.autoRun.enabled) return;
 
+    // 先清理所有现有定时器/cron job，避免旧 job 泄漏
+    if (state.autoRun.timerId) { clearTimeout(state.autoRun.timerId); state.autoRun.timerId = null; }
+    if (state.autoRun.cronJob) {
+      try { state.autoRun.cronJob.stop(); } catch (e) { /* 忽略 */ }
+      state.autoRun.cronJob = null;
+    }
+
     const mode = el.autoRunMode ? el.autoRunMode.value : 'interval';
     const expr = el.autoRunExpr ? el.autoRunExpr.value.trim() : '5';
 
@@ -1669,6 +1823,7 @@
       updateAutoRunUI();
       state.autoRun.timerId = setTimeout(async () => {
         if (!state.autoRun.enabled) return;
+        if (state.running) { scheduleNext(); return; }
         try { await doRun(); } catch (e) { /* doRun 内部已处理错误 */ }
         scheduleNext();
       }, delayMs);
@@ -1688,6 +1843,7 @@
       // croner 支持传入回调，会自动按 cron 周期触发
       job = new Cron(expr, { protect: true }, async () => {
         if (!state.autoRun.enabled) return;
+        if (state.running) return;
         try { await doRun(); } catch (e) { /* 忽略，protect:true 会保证下一次仍触发 */ }
       });
     } catch (e) {
@@ -1736,6 +1892,7 @@
     undo: doUndo,
     redo: doRedo,
     clear: doClear,
+    'auto-layout': autoLayout,
     save: doSave,
     load: doLoad,
     'save-local': doSaveLocal,
