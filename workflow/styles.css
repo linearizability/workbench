@@ -46,6 +46,22 @@
   gap: var(--spacing-xs);
 }
 
+.workflow-tool-search {
+  width: calc(100% - 2 * var(--spacing-sm));
+  margin: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.workflow-tool-search:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .workflow-tool-item {
   display: flex;
   align-items: center;
@@ -97,6 +113,32 @@
   background-size: 20px 20px;
 }
 
+/* 内层 viewport：承载 svg + nodes，应用 pan/zoom transform */
+.workflow-viewport {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  /* transform 由 JS 动态设置 */
+}
+
+/* 缩放控件 */
+.workflow-zoom-controls {
+  position: absolute;
+  right: var(--spacing-sm);
+  bottom: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  z-index: 10;
+}
+
+.workflow-zoom-controls .btn {
+  min-width: 32px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-weight: 600;
+  line-height: 1;
+}
+
 .workflow-hint {
   position: absolute;
   top: 50%;
@@ -121,18 +163,18 @@
 .workflow-edge {
   fill: none;
   stroke: var(--color-primary);
-  stroke-width: 2;
+  stroke-width: 3;
   pointer-events: auto;
   cursor: pointer;
 }
 
 .workflow-edge:hover {
-  stroke-width: 3;
+  stroke-width: 4;
 }
 
 .workflow-edge.is-selected {
   stroke: var(--color-danger);
-  stroke-width: 3;
+  stroke-width: 4;
 }
 
 .workflow-edge-true {
@@ -141,11 +183,11 @@
 
 .workflow-edge-false {
   stroke: var(--color-danger);
-  stroke-dasharray: 6 4;
+  stroke-dasharray: 12 8;
 }
 
 .workflow-edge-drawing {
-  stroke-dasharray: 5 5;
+  stroke-dasharray: 10 10;
   stroke: var(--color-warning);
 }
 
@@ -246,8 +288,8 @@
 
 .workflow-node {
   position: absolute;
-  width: 180px;
-  max-height: 40px;
+  width: 240px;
+  height: auto;           /* 自适应端口数量，不折叠 */
   background: var(--color-bg);
   border: 2px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -255,8 +297,8 @@
   cursor: grab;
   user-select: none;
   z-index: 3;
-  overflow: hidden;
-  transition: max-height 0.2s ease, border-color 0.15s, box-shadow 0.15s;
+  overflow: visible;      /* 端口始终可见，不需要 overflow:hidden */
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .workflow-node:hover,
@@ -269,33 +311,25 @@
   box-shadow: var(--shadow-focus);
 }
 
-/* hover 或选中时展开端口区 */
-.workflow-node:hover,
-.workflow-node.is-selected,
-.workflow-node.is-connecting {
-  max-height: 500px;
-  overflow: visible;
-}
-
 /* ── 节点 Header ── */
 .workflow-node-header {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
   padding: 0 var(--spacing-md);
-  padding-left: 24px;   /* 给输入端口留空间 */
-  padding-right: 24px;  /* 给输出端口留空间 */
-  height: 40px;         /* 固定 header 高度 */
+  padding-left: 32px;   /* 给输入端口留空间 */
+  padding-right: 32px;  /* 给输出端口留空间 */
+  height: 52px;         /* 固定 header 高度 */
   box-sizing: border-box;
 }
 
 .workflow-node-icon {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-2xl);
   line-height: 1;
 }
 
 .workflow-node-name {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--color-text);
   white-space: nowrap;
@@ -305,9 +339,9 @@
 
 .workflow-node-status {
   margin-left: auto;
-  font-size: var(--font-size-xs);
-  width: 1.25rem;
-  height: 1.25rem;
+  font-size: var(--font-size-sm);
+  width: 2rem;
+  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -325,41 +359,31 @@
   background: var(--color-danger-fade-10);
 }
 
-/* ── 端口区（收起时隐藏，展开时显示） ── */
+.workflow-node-status.is-skipped {
+  color: var(--color-text-muted);
+  background: var(--color-bg-secondary);
+}
+
+/* ── 端口区 ── */
 .workflow-node-ports {
   position: relative;
   overflow: visible;
-  border-top: 1px solid transparent;
-  transition: border-color 0.2s;
-}
-
-.workflow-node:hover .workflow-node-ports,
-.workflow-node.is-selected .workflow-node-ports,
-.workflow-node.is-connecting .workflow-node-ports {
-  border-top-color: var(--color-border);
+  border-top: 1px solid var(--color-border);
 }
 
 /* ── 端口 ── */
 .workflow-port {
   position: absolute;
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: var(--color-bg);
   border: 2px solid var(--color-primary);
   cursor: crosshair;
   z-index: 4;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s, transform 0.15s;
-}
-
-/* hover / 选中 / 拖拽连线时显示端口 */
-.workflow-node:hover .workflow-port,
-.workflow-node.is-selected .workflow-port,
-.workflow-node.is-connecting .workflow-port {
   opacity: 1;
   pointer-events: auto;
+  transition: transform 0.15s;
 }
 
 .workflow-port:hover {
@@ -368,35 +392,35 @@
 }
 
 .workflow-port-in {
-  left: -5px;
+  left: -7px;
 }
 
 .workflow-port-out {
-  right: -5px;
+  right: -7px;
 }
 
-/* 端口标签 — 收起时隐藏，展开时显示 */
+/* 端口标签 — 仅 hover 时 opacity 淡入（不改布局，无时序冲突） */
 .workflow-port-label {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 130px;
+  max-width: 180px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s;
 }
 
 .workflow-port-in .workflow-port-label {
-  left: 14px;
+  left: 22px;
 }
 
 .workflow-port-out .workflow-port-label {
-  right: 14px;
+  right: 22px;
   text-align: right;
 }
 
@@ -440,6 +464,29 @@
   font-weight: 600;
   font-size: var(--font-size-sm);
   color: var(--color-text);
+}
+
+.workflow-props-name-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  outline: none;
+  padding: 2px 0;
+  border-bottom: 1px solid transparent;
+}
+
+.workflow-props-name-input:focus {
+  border-bottom-color: var(--color-primary);
+}
+
+.workflow-props-node-id {
+  font-size: 0.85em;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .workflow-props-section {
@@ -585,6 +632,11 @@
 .workflow-log-item.is-success {
   color: var(--color-success);
   background: var(--color-success-fade-5);
+}
+
+.workflow-log-item.is-warning {
+  color: var(--color-warning);
+  background: var(--color-warning-fade-8);
 }
 
 .workflow-log-item.is-error {

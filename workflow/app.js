@@ -8,29 +8,188 @@
   const el = {};
   const state = {
     nodes: [],      // { id, tool, x, y, params }
-    edges: [],      // { from, to, fromOutput, toInput }
+    edges: [],      // { id, from, to, fromOutput, toInput }
     selectedNode: null,
-    selectedEdge: null,   // index in state.edges
-    nextId: 1,
+    selectedEdge: null,   // edge id (string)
+    nextNodeId: 1,
+    nextEdgeId: 1,
     dragging: null,       // { id, offsetX, offsetY }
     drawingEdge: null,    // { fromId, fromOutput, svgPath }
-    autoRun: { enabled: false, timerId: null, nextRun: null }
+    autoRun: { enabled: false, timerId: null, nextRun: null, countdownTimerId: null, cronJob: null },
+    dirty: false,         // 自上次保存/加载以来是否有未持久化改动
+    lastSavedName: null,  // 最近一次保存/加载的工作流名称
+    // 画布平移/缩放
+    viewport: { scale: 1, offsetX: 0, offsetY: 0 },
+    panning: null,        // { startX, startY, origOffsetX, origOffsetY }
+    spaceDown: false,     // 空格键是否按下（用于平移模式）
+    running: false        // 工作流是否正在执行（防重入）
   };
 
   const TOOL_MANIFESTS = []; // 已加载的工具元数据
+
+  function markDirty() { state.dirty = true; }
+  function markClean() { state.dirty = false; }
+
+  // ── 画布平移/缩放 ──
+  const MIN_SCALE = 0.2;
+  const MAX_SCALE = 3;
+
+  function applyViewport() {
+    if (!el.viewport) return;
+    const { scale, offsetX, offsetY } = state.viewport;
+    el.viewport.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+  }
+
+  function setZoom(newScale, centerClientX, centerClientY) {
+    const oldScale = state.viewport.scale;
+    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+    if (clamped === oldScale) return;
+
+    // 以鼠标位置为中心缩放：保持鼠标下的画布点不动
+    const rect = el.canvas.getBoundingClientRect();
+    const cx = (centerClientX !== undefined ? centerClientX : rect.left + rect.width / 2) - rect.left;
+    const cy = (centerClientY !== undefined ? centerClientY : rect.top + rect.height / 2) - rect.top;
+
+    // 鼠标在画布坐标系中的位置（缩放前）
+    const canvasX = (cx - state.viewport.offsetX) / oldScale;
+    const canvasY = (cy - state.viewport.offsetY) / oldScale;
+
+    state.viewport.scale = clamped;
+    // 缩放后保持同一画布点对齐鼠标
+    state.viewport.offsetX = cx - canvasX * clamped;
+    state.viewport.offsetY = cy - canvasY * clamped;
+    applyViewport();
+  }
+
+  function resetZoom() {
+    state.viewport.scale = 1;
+    state.viewport.offsetX = 0;
+    state.viewport.offsetY = 0;
+    applyViewport();
+  }
+
+  // 屏幕坐标转画布坐标（用于在缩放后正确放置新节点）
+  function screenToCanvas(clientX, clientY) {
+    const rect = el.canvas.getBoundingClientRect();
+    const cx = clientX - rect.left;
+    const cy = clientY - rect.top;
+    return {
+      x: (cx - state.viewport.offsetX) / state.viewport.scale,
+      y: (cy - state.viewport.offsetY) / state.viewport.scale
+    };
+  }
+
+  // 计算画布"可见区域"的中心屏幕坐标（画布 rect 与浏览器视口的交集）
+  // 解决：画布元素可能比视口更高（min-height:100vh + 底部面板），
+  //       直接用 rect 中心会导致新节点落在可见区域之外
+  function getVisibleCanvasCenter() {
+    const rect = el.canvas.getBoundingClientRect();
+    const visibleLeft = Math.max(rect.left, 0);
+    const visibleRight = Math.min(rect.right, window.innerWidth);
+    const visibleTop = Math.max(rect.top, 0);
+    const visibleBottom = Math.min(rect.bottom, window.innerHeight);
+    return {
+      x: (visibleLeft + visibleRight) / 2,
+      y: (visibleTop + visibleBottom) / 2
+    };
+  }
+
+  // ── 撤销/重做历史栈 ──
+  const history = {
+    undoStack: [],
+    redoStack: [],
+    maxDepth: 50
+  };
+
+  function snapshotState() {
+    return {
+      nodes: state.nodes.map(n => ({
+        id: n.id,
+        tool: n.tool,
+        name: n.name,
+        icon: n.icon,
+        x: n.x,
+        y: n.y,
+        params: JSON.parse(JSON.stringify(n.params || {})),
+        initialInputs: JSON.parse(JSON.stringify(n.initialInputs || {}))
+      })),
+      edges: state.edges.map(e => ({
+        id: e.id,
+        from: e.from,
+        to: e.to,
+        fromOutput: e.fromOutput,
+        toInput: e.toInput
+      })),
+      nextNodeId: state.nextNodeId,
+      nextEdgeId: state.nextEdgeId,
+      selectedNode: state.selectedNode,
+      selectedEdge: state.selectedEdge
+    };
+  }
+
+  function restoreState(snap) {
+    state.dragging = null;
+    state.nodes = snap.nodes.map(n => ({ ...n }));
+    state.edges = snap.edges.map(e => ({ ...e }));
+    state.nextNodeId = snap.nextNodeId;
+    state.nextEdgeId = snap.nextEdgeId;
+    state.selectedNode = snap.selectedNode;
+    state.selectedEdge = snap.selectedEdge;
+    el.nodesLayer.innerHTML = '';
+    el.svg.innerHTML = '';
+    _edgePathMap.clear();
+    state.nodes.forEach(n => renderNode(n));
+    renderEdges();
+    renderProps();
+  }
+
+  function pushHistory() {
+    history.undoStack.push(snapshotState());
+    if (history.undoStack.length > history.maxDepth) history.undoStack.shift();
+    history.redoStack.length = 0; // 新操作清空 redo
+  }
+
+  function doUndo() {
+    if (!history.undoStack.length) {
+      showToast('无可撤销操作', 'info', 1500);
+      return;
+    }
+    const current = snapshotState();
+    const prev = history.undoStack.pop();
+    history.redoStack.push(current);
+    restoreState(prev);
+    markDirty();
+    showToast('已撤销', 'info', 1500);
+  }
+
+  function doRedo() {
+    if (!history.redoStack.length) {
+      showToast('无可重做操作', 'info', 1500);
+      return;
+    }
+    const current = snapshotState();
+    const next = history.redoStack.pop();
+    history.undoStack.push(current);
+    restoreState(next);
+    markDirty();
+    showToast('已重做', 'info', 1500);
+  }
 
   async function init() {
     cacheElements();
     await loadToolManifests();
     renderToolList();
     bindEvents();
+    applyViewport();
     updateSavedList();
     tryAutoLoad();
   }
 
   function cacheElements() {
     el.toolList = document.getElementById('tool-list');
+    el.toolSearch = document.getElementById('tool-search');
     el.canvas = document.getElementById('workflow-canvas');
+    el.viewport = document.getElementById('workflow-viewport');
     el.svg = document.getElementById('workflow-svg');
     el.nodesLayer = document.getElementById('workflow-nodes');
     el.props = document.getElementById('workflow-props');
@@ -41,17 +200,14 @@
     el.autoRunMode = document.getElementById('auto-run-mode');
     el.autoRunExpr = document.getElementById('auto-run-expr');
     el.autoRunCountdown = document.getElementById('auto-run-countdown');
+    el.runBtn = document.querySelector('[data-action="run"]');
   }
 
   // ── 加载工具清单（manifest 已由 index.html 静态加载，此处仅做组装）──
   async function loadToolManifests() {
-    const toolIds = ['json', 'diff', 'http-request', 'base64', 'uuid', 'md5', 'url', 'jwt', 'timestamp',
-      'cron', 'qrcode', 'regex', 'file-generator', 'image-generator', 'properties-yaml',
-      'svg-editor', 'json-to-struct', 'notepad', 'links', 'password-generator', 'unicode'];
-    toolIds.forEach(id => {
-      const tool = window.TOOL_REGISTRY.get(id);
-      if (tool) TOOL_MANIFESTS.push(tool);
-    });
+    // 直接从注册中心获取所有已注册工具
+    const registeredTools = window.TOOL_REGISTRY.list();
+    TOOL_MANIFESTS.push(...registeredTools);
 
     // 注册内置条件分支工具
     TOOL_MANIFESTS.push({
@@ -90,11 +246,7 @@
   const AUTO_SAVE_KEY = 'workflow_auto_save';
 
   function getSavedWorkflows() {
-    try {
-      return storage.get(SAVED_WORKFLOWS_KEY, {});
-    } catch {
-      return {};
-    }
+    return storage.get(SAVED_WORKFLOWS_KEY, {}) || {};
   }
 
   function saveWorkflowLocal(name) {
@@ -110,13 +262,24 @@
         params: n.params,
         initialInputs: n.initialInputs
       })),
-      edges: state.edges
+      edges: state.edges.map(e => ({
+        id: e.id,
+        from: e.from,
+        to: e.to,
+        fromOutput: e.fromOutput,
+        toInput: e.toInput
+      }))
     };
     const saved = getSavedWorkflows();
     saved[name] = { data, savedAt: Date.now() };
-    storage.set(SAVED_WORKFLOWS_KEY, saved);
+    if (!storage.set(SAVED_WORKFLOWS_KEY, saved)) {
+      showToast('本地存储已满或不可用，请清理浏览器存储后重试', 'error');
+      return;
+    }
     storage.set(AUTO_SAVE_KEY, name);
     updateSavedList();
+    state.lastSavedName = name;
+    markClean();
     showToast(`已保存到本地: ${name}`, 'success');
   }
 
@@ -129,6 +292,8 @@
     }
     applyWorkflowData(entry.data);
     storage.set(AUTO_SAVE_KEY, name);
+    state.lastSavedName = name;
+    markClean();
     showToast(`已加载: ${name}`, 'success');
   }
 
@@ -158,12 +323,17 @@
   }
 
   function tryAutoLoad() {
-    const lastName = storage.get(AUTO_SAVE_KEY, '');
-    if (lastName) {
-      const saved = getSavedWorkflows();
-      if (saved[lastName]) {
-        loadWorkflowLocal(lastName);
+    try {
+      const lastName = storage.get(AUTO_SAVE_KEY, '');
+      if (lastName) {
+        const saved = getSavedWorkflows();
+        if (saved[lastName]) {
+          loadWorkflowLocal(lastName);
+        }
       }
+    } catch (err) {
+      console.error('自动加载工作流失败:', err);
+      storage.remove(AUTO_SAVE_KEY);
     }
   }
 
@@ -182,34 +352,102 @@
   }
 
   function applyWorkflowData(data) {
-    if (data.nodes) state.nodes = data.nodes;
-    if (data.edges) state.edges = data.edges;
+    if (!data || typeof data !== 'object') {
+      showToast('工作流数据格式无效', 'error');
+      return;
+    }
+    if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
+      showToast('工作流数据缺少 nodes 或 edges 数组', 'error');
+      return;
+    }
+
+    // 规范化节点：补齐缺失字段，过滤非法项
+    const validNodeIds = new Set();
+    const nodes = [];
+    for (const n of data.nodes) {
+      if (!n || typeof n !== 'object' || !n.id || !n.tool) {
+        console.warn('跳过无效节点:', n);
+        continue;
+      }
+      validNodeIds.add(n.id);
+      nodes.push({
+        id: String(n.id),
+        tool: String(n.tool),
+        name: n.name ? String(n.name) : n.tool,
+        icon: n.icon || '🔧',
+        x: Number(n.x) || 0,
+        y: Number(n.y) || 0,
+        params: (n.params && typeof n.params === 'object') ? n.params : {},
+        initialInputs: (n.initialInputs && typeof n.initialInputs === 'object') ? n.initialInputs : {}
+      });
+    }
+
+    // 规范化边：丢弃引用不存在节点的边
+    const edges = [];
+    for (const e of data.edges) {
+      if (!e || !e.from || !e.to || !e.fromOutput || !e.toInput) {
+        console.warn('跳过无效边:', e);
+        continue;
+      }
+      if (!validNodeIds.has(e.from) || !validNodeIds.has(e.to)) continue;
+      edges.push({
+        id: e.id ? String(e.id) : ('e' + (edges.length + 1) + '_' + Date.now()),
+        from: String(e.from),
+        to: String(e.to),
+        fromOutput: String(e.fromOutput),
+        toInput: String(e.toInput)
+      });
+    }
+
+    state.nodes = nodes;
+    state.edges = edges;
+
     // 更新 nextId 避免 ID 冲突
-    const maxId = state.nodes.reduce((max, n) => {
+    const maxNodeId = state.nodes.reduce((max, n) => {
       const num = parseInt(n.id.replace(/^n/, ''), 10);
       return isNaN(num) ? max : Math.max(max, num);
     }, 0);
-    state.nextId = maxId + 1;
+    state.nextNodeId = maxNodeId + 1;
+
+    const maxEdgeId = state.edges.reduce((max, e) => {
+      const num = parseInt(String(e.id).replace(/^e/, ''), 10);
+      return isNaN(num) ? max : Math.max(max, num);
+    }, 0);
+    state.nextEdgeId = maxEdgeId + 1;
+
     // 重新渲染
     el.nodesLayer.innerHTML = '';
     el.svg.innerHTML = '';
+    _edgePathMap.clear();
     state.nodes.forEach(n => renderNode(n));
     renderEdges();
     renderProps();
     doClearLogs();
     doClearResults();
+    resetZoom();
+    // 重置历史栈（加载新工作流后不应允许 undo 回上一个工作流）
+    history.undoStack.length = 0;
+    history.redoStack.length = 0;
   }
 
   // ── 渲染左侧工具箱 ──
-  function renderToolList() {
-    if (!TOOL_MANIFESTS.length) {
-      el.toolList.innerHTML = '<div class="placeholder">暂无可用工具</div>';
+  function renderToolList(query = '') {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? TOOL_MANIFESTS.filter(t =>
+          (t.name && t.name.toLowerCase().includes(q)) ||
+          (t.id && t.id.toLowerCase().includes(q)) ||
+          (t.description && t.description.toLowerCase().includes(q)))
+      : TOOL_MANIFESTS;
+
+    if (!filtered.length) {
+      el.toolList.innerHTML = '<div class="placeholder">未找到匹配工具</div>';
       return;
     }
-    el.toolList.innerHTML = TOOL_MANIFESTS.map(t => `
-      <div class="workflow-tool-item" data-tool="${t.id}" title="${t.description || ''}">
-        <span class="workflow-tool-icon">${t.icon || '🔧'}</span>
-        <span class="workflow-tool-name">${t.name}</span>
+    el.toolList.innerHTML = filtered.map(t => `
+      <div class="workflow-tool-item" data-tool="${escapeHtml(t.id)}" title="${escapeHtml(t.description || '')}">
+        <span class="workflow-tool-icon">${escapeHtml(t.icon || '🔧')}</span>
+        <span class="workflow-tool-name">${escapeHtml(t.name)}</span>
       </div>
     `).join('');
   }
@@ -222,10 +460,25 @@
       if (item) addNode(item.dataset.tool);
     });
 
+    // 工具箱搜索（input 事件实时过滤）
+    if (el.toolSearch) {
+      el.toolSearch.addEventListener('input', () => {
+        renderToolList(el.toolSearch.value);
+      });
+    }
+
     // 画布拖拽与连线
     el.canvas.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+
+    // 滚轮缩放（以鼠标位置为中心）
+    el.canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = -e.deltaY;
+      const factor = delta > 0 ? 1.1 : 1 / 1.1;
+      setZoom(state.viewport.scale * factor, e.clientX, e.clientY);
+    }, { passive: false });
 
     // 按钮
     document.addEventListener('click', (e) => {
@@ -254,35 +507,52 @@
       el.autoRunMode.addEventListener('change', () => {
         const mode = el.autoRunMode.value;
         if (el.autoRunExpr) el.autoRunExpr.placeholder = mode === 'interval' ? '5' : '0 9 * * *';
-        if (state.autoRun.enabled) {
-          if (state.autoRun.timerId) clearTimeout(state.autoRun.timerId);
-          scheduleNext();
-        }
+        if (state.autoRun.enabled) scheduleNext();
       });
     }
     if (el.autoRunExpr) {
       el.autoRunExpr.addEventListener('change', () => {
-        if (state.autoRun.enabled) {
-          if (state.autoRun.timerId) clearTimeout(state.autoRun.timerId);
-          scheduleNext();
-        }
+        if (state.autoRun.enabled) scheduleNext();
       });
     }
 
-    // 页面卸载时清理定时器
-    window.addEventListener('beforeunload', () => {
+    // 页面卸载时清理定时器，若有未保存改动则提示
+    window.addEventListener('beforeunload', (e) => {
       if (state.autoRun.timerId) clearTimeout(state.autoRun.timerId);
+      if (state.autoRun.countdownTimerId) clearInterval(state.autoRun.countdownTimerId);
+      if (state.autoRun.cronJob) {
+        try { state.autoRun.cronJob.stop(); } catch (err) { /* 忽略 */ }
+      }
+      if (state.dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
     });
 
-    // 每秒刷新倒计时显示
-    setInterval(() => {
-      if (state.autoRun.enabled && state.autoRun.nextRun) {
-        updateAutoRunUI();
+    // 空格键释放：退出平移模式
+    window.addEventListener('keyup', (e) => {
+      if (e.key === ' ' || e.code === 'Space') {
+        state.spaceDown = false;
+        if (el.canvas) el.canvas.style.cursor = '';
       }
-    }, 1000);
+    });
+
+    // 倒计时刷新 interval：startAutoRun 时启动，stopAutoRun 时清除
+    // （在 startAutoRun / stopAutoRun 中管理，避免空闲时持续运行）
 
     // 删除节点 / 连线
     window.addEventListener('keydown', (e) => {
+      // 空格键：进入平移模式（仅非输入焦点时）
+      if (e.key === ' ' || e.code === 'Space') {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) return;
+        if (!state.spaceDown) {
+          state.spaceDown = true;
+          if (el.canvas) el.canvas.style.cursor = 'grab';
+        }
+        e.preventDefault();
+        return;
+      }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         // 若焦点在输入控件内，不触发节点删除
         const active = document.activeElement;
@@ -299,18 +569,83 @@
           removeEdge(state.selectedEdge);
         }
       }
+
+      // 复制 / 粘贴节点
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) return;
+        if (state.selectedNode) {
+          const node = state.nodes.find(n => n.id === state.selectedNode);
+          if (node) {
+            _clipboard = JSON.parse(JSON.stringify({
+              tool: node.tool,
+              name: node.name,
+              icon: node.icon,
+              params: node.params,
+              initialInputs: node.initialInputs
+            }));
+            _pasteOffset = 0;
+            showToast('节点已复制', 'info', 1500);
+          }
+        }
+      }
+      // 撤销 / 重做
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) return;
+        e.preventDefault();
+        doUndo();
+      } else if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && (e.key === 'z' || e.key === 'Z')) || e.key === 'y' || e.key === 'Y')) {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) return;
+        e.preventDefault();
+        doRedo();
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) return;
+        if (_clipboard) {
+          _pasteOffset++;
+          const offset = _pasteOffset * 20;
+          const newId = 'n' + state.nextNodeId++;
+          const visCenter = getVisibleCanvasCenter();
+          const center = screenToCanvas(visCenter.x, visCenter.y);
+          const node = {
+            id: newId,
+            tool: _clipboard.tool,
+            name: _clipboard.name,
+            icon: _clipboard.icon,
+            x: center.x - NODE_WIDTH / 2 + offset,
+            y: center.y - NODE_HEADER_H / 2 + offset,
+            params: JSON.parse(JSON.stringify(_clipboard.params || {})),
+            initialInputs: JSON.parse(JSON.stringify(_clipboard.initialInputs || {}))
+          };
+          pushHistory();
+          state.nodes.push(node);
+          renderNode(node);
+          selectNode(newId);
+          markDirty();
+          showToast('节点已粘贴', 'info', 1500);
+        }
+      }
     });
   }
+
+  let _clipboard = null;
+  let _pasteOffset = 0;
+  const _edgePathMap = new Map(); // edgeId → SVG path 元素缓存（增量更新，避免每帧销毁重建）
 
   // ── 节点操作 ──
   function addNode(toolId) {
     const manifest = TOOL_MANIFESTS.find(t => t.id === toolId);
     if (!manifest) return;
 
-    const id = 'n' + state.nextId++;
-    const rect = el.canvas.getBoundingClientRect();
-    const x = rect.width / 2 - 90 + (Math.random() * 40 - 20);
-    const y = rect.height / 2 - 20 + (Math.random() * 40 - 20);
+    const id = 'n' + state.nextNodeId++;
+    // 使用画布可见区域中心（而非整个画布元素中心），确保节点落在用户看得见的位置
+    const visCenter = getVisibleCanvasCenter();
+    const center = screenToCanvas(visCenter.x, visCenter.y);
+    const x = center.x - NODE_WIDTH / 2 + (Math.random() * 80 - 40);
+    const y = center.y - NODE_HEADER_H / 2 + (Math.random() * 80 - 40);
 
     const node = {
       id,
@@ -322,9 +657,11 @@
       initialInputs: {}
     };
 
+    pushHistory();
     state.nodes.push(node);
     renderNode(node);
     selectNode(id);
+    markDirty();
   }
 
   function buildDefaultParams(paramDefs) {
@@ -336,21 +673,17 @@
     return params;
   }
 
-  // 节点常量
-  const NODE_WIDTH = 180;
-  const NODE_HEADER_H = 40;
-  const PORT_START_Y = 14;   // 端口区内起始偏移（上下各留 14px padding）
-  const PORT_SPACING = 22;   // 端口间距（稍微拉开一点）
-  const PORT_RADIUS = 5;    // 端口圆半径
+  // 节点常量（适度放大，约 1.3x）
+  const NODE_WIDTH = 240;
+  const NODE_HEADER_H = 52;
+  const PORT_START_Y = 18;   // 端口区内起始偏移
+  const PORT_SPACING = 30;   // 端口间距
+  const PORT_RADIUS = 7;     // 端口圆半径
 
-  function getPortY(portIndex, nodeId) {
-    const div = nodeId ? document.getElementById(nodeId) : null;
-    if (div) {
-      const isExpanded = div.classList.contains('is-selected') || div.classList.contains('is-connecting') || div.classList.contains('is-hovered');
-      if (!isExpanded) {
-        return NODE_HEADER_H / 2;
-      }
-    }
+  // 判断节点是否处于"端口展开"状态（选中 / 正在连线 / hover）
+  // 注：hover 状态用 DOM classList 读取（hover 由 CSS :hover 也能处理，
+  // 端口 Y 坐标（始终返回真实位置，无折叠/展开分支）
+  function getPortY(portIndex) {
     return NODE_HEADER_H + PORT_START_Y + portIndex * PORT_SPACING + PORT_RADIUS;
   }
 
@@ -364,37 +697,40 @@
     const outputs = manifest?.outputs || [];
 
     const inputPorts = inputs.map((p, i) => `
-      <div class="workflow-port workflow-port-in" data-port="${p.name}" title="${p.label}"
+      <div class="workflow-port workflow-port-in" data-port="${escapeHtml(p.name)}" title="${escapeHtml(p.label)}"
            style="top:${PORT_START_Y + i * PORT_SPACING}px">
-        <span class="workflow-port-label">${p.label}</span>
+        <span class="workflow-port-label">${escapeHtml(p.label)}</span>
       </div>
     `).join('');
 
     const outputPorts = outputs.map((p, i) => `
-      <div class="workflow-port workflow-port-out" data-port="${p.name}" title="${p.label}"
+      <div class="workflow-port workflow-port-out" data-port="${escapeHtml(p.name)}" title="${escapeHtml(p.label)}"
            style="top:${PORT_START_Y + i * PORT_SPACING}px">
-        <span class="workflow-port-label">${p.label}</span>
+        <span class="workflow-port-label">${escapeHtml(p.label)}</span>
       </div>
     `).join('');
 
     const maxPorts = Math.max(inputs.length, outputs.length);
-    const portsHeight = maxPorts * PORT_SPACING + PORT_START_Y * 2;
+    const portsHeight = maxPorts > 0 ? maxPorts * PORT_SPACING + PORT_START_Y * 2 : 0;
 
     const div = document.createElement('div');
     div.className = 'workflow-node';
     div.id = node.id;
     div.style.transform = `translate(${node.x}px, ${node.y}px)`;
     div.dataset.maxPorts = maxPorts;
+    const portsHtml = maxPorts > 0
+      ? `<div class="workflow-node-ports" style="height: ${portsHeight}px;">
+          ${inputPorts}
+          ${outputPorts}
+        </div>`
+      : '';
     div.innerHTML = `
       <div class="workflow-node-header">
-        <span class="workflow-node-icon">${node.icon}</span>
-        <span class="workflow-node-name">${node.name}</span>
+        <span class="workflow-node-icon">${escapeHtml(node.icon)}</span>
+        <span class="workflow-node-name">${escapeHtml(node.name)}</span>
         <span class="workflow-node-status"></span>
       </div>
-      <div class="workflow-node-ports" style="height: ${portsHeight}px;">
-        ${inputPorts}
-        ${outputPorts}
-      </div>
+      ${portsHtml}
     `;
 
     // 节点点击选中
@@ -402,17 +738,14 @@
       if (e.target.classList.contains('workflow-port')) return;
       e.stopPropagation();
       selectNode(node.id);
-      state.dragging = { id: node.id, startX: e.clientX, startY: e.clientY, origX: node.x, origY: node.y };
-    });
-
-    // hover 展开/收起时重新渲染连线
-    div.addEventListener('mouseenter', () => {
-      div.classList.add('is-hovered');
-      renderEdges();
-    });
-    div.addEventListener('mouseleave', () => {
-      div.classList.remove('is-hovered');
-      renderEdges();
+      state.dragging = {
+        id: node.id,
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: node.x,
+        origY: node.y,
+        preDragSnapshot: snapshotState() // 拖拽前快照，mouseup 时若位置变了再 push
+      };
     });
 
     // 端口 mousedown 开始连线
@@ -438,6 +771,7 @@
   }
 
   function removeNode(id) {
+    pushHistory();
     state.nodes = state.nodes.filter(n => n.id !== id);
     state.edges = state.edges.filter(e => e.from !== id && e.to !== id);
     const div = document.getElementById(id);
@@ -447,39 +781,73 @@
       state.selectedNode = null;
       renderProps();
     }
+    markDirty();
   }
 
   function selectNode(id) {
     state.selectedNode = id;
     document.querySelectorAll('.workflow-node').forEach(n => n.classList.toggle('is-selected', n.id === id));
-    renderEdges();
+    scheduleRenderEdges();
     renderProps();
   }
 
   // ── 拖拽 ──
   function handleMouseDown(e) {
-    if (e.target === el.canvas || e.target === el.svg || e.target.classList.contains('workflow-hint')) {
+    // 中键或空格+左键：启动平移（优先）
+    if (e.button === 1 || (e.button === 0 && state.spaceDown)) {
+      state.panning = {
+        startX: e.clientX,
+        startY: e.clientY,
+        origOffsetX: state.viewport.offsetX,
+        origOffsetY: state.viewport.offsetY
+      };
+      e.preventDefault();
+      return;
+    }
+    // 点击空白处取消选中
+    if (e.target === el.canvas || e.target === el.viewport || e.target === el.svg || e.target.classList.contains('workflow-hint')) {
       state.selectedNode = null;
       state.selectedEdge = null;
       document.querySelectorAll('.workflow-node').forEach(n => n.classList.remove('is-selected'));
       el.svg.querySelectorAll('.workflow-edge').forEach(p => p.classList.remove('is-selected'));
-      renderEdges();
       renderProps();
     }
   }
 
+  // rAF 节流标志：拖拽期间避免每帧多次 renderEdges
+  let _rafPending = false;
+  function scheduleRenderEdges() {
+    if (_rafPending) return;
+    _rafPending = true;
+    requestAnimationFrame(() => {
+      _rafPending = false;
+      renderEdges();
+    });
+  }
+
   function handleMouseMove(e) {
-    // 节点拖拽
+    // 平移
+    if (state.panning) {
+      const dx = e.clientX - state.panning.startX;
+      const dy = e.clientY - state.panning.startY;
+      state.viewport.offsetX = state.panning.origOffsetX + dx;
+      state.viewport.offsetY = state.panning.origOffsetY + dy;
+      applyViewport();
+      return;
+    }
+
+    // 节点拖拽（注意缩放：屏幕 delta 需除以 scale 才是画布坐标 delta）
     if (state.dragging) {
       const node = state.nodes.find(n => n.id === state.dragging.id);
       if (node) {
-        const dx = e.clientX - state.dragging.startX;
-        const dy = e.clientY - state.dragging.startY;
+        const scale = state.viewport.scale || 1;
+        const dx = (e.clientX - state.dragging.startX) / scale;
+        const dy = (e.clientY - state.dragging.startY) / scale;
         node.x = state.dragging.origX + dx;
         node.y = state.dragging.origY + dy;
         const div = document.getElementById(node.id);
         if (div) div.style.transform = `translate(${node.x}px, ${node.y}px)`;
-        renderEdges();
+        scheduleRenderEdges();
       }
     }
 
@@ -489,7 +857,22 @@
     }
   }
 
-  function handleMouseUp() {
+  function handleMouseUp(e) {
+    if (state.panning) {
+      state.panning = null;
+      return;
+    }
+    if (state.dragging) {
+      // 拖拽结束：若位置变化了，把拖拽前快照压入历史栈
+      const node = state.nodes.find(n => n.id === state.dragging.id);
+      const moved = node && (node.x !== state.dragging.origX || node.y !== state.dragging.origY);
+      if (moved && state.dragging.preDragSnapshot) {
+        history.undoStack.push(state.dragging.preDragSnapshot);
+        if (history.undoStack.length > history.maxDepth) history.undoStack.shift();
+        history.redoStack.length = 0;
+        markDirty();
+      }
+    }
     state.dragging = null;
     if (state.drawingEdge) {
       // 如果未成功连接到目标端口，取消连线
@@ -516,10 +899,12 @@
     const fromOutputIndex = (fromManifest?.outputs || []).findIndex(o => o.name === state.drawingEdge.fromOutput);
 
     const fromX = fromNode.x + NODE_WIDTH + PORT_RADIUS; // 节点右边界 + 端口半径
-    const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0, fromNode.id);
-    const toX = e.clientX - el.canvas.getBoundingClientRect().left;
-    const toY = e.clientY - el.canvas.getBoundingClientRect().top;
-    const d = `M ${fromX} ${fromY} C ${fromX + 80} ${fromY}, ${toX - 80} ${toY}, ${toX} ${toY}`;
+    const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0);
+    // 鼠标位置转画布坐标（svg 在 viewport 内，跟随缩放）
+    const pt = screenToCanvas(e.clientX, e.clientY);
+    const toX = pt.x;
+    const toY = pt.y;
+    const d = `M ${fromX} ${fromY} C ${fromX + 160} ${fromY}, ${toX - 160} ${toY}, ${toX} ${toY}`;
     state.drawingEdge.path.setAttribute('d', d);
   }
 
@@ -533,13 +918,72 @@
       cancelDrawingEdge();
       return;
     }
-    // 避免重复连线
+    // 避免重复连线（同一 from/to/fromOutput/toInput）
     const exists = state.edges.some(e => e.from === fromId && e.to === toId && e.fromOutput === fromOutput && e.toInput === toPort);
     if (!exists) {
-      state.edges.push({ from: fromId, to: toId, fromOutput, toInput: toPort });
+      // 实时环检测：临时加入后做拓扑校验
+      const tempEdges = state.edges.concat([{ from: fromId, to: toId }]);
+      if (wouldCreateCycle(tempEdges)) {
+        showToast('该连线会形成环，已阻止', 'warning');
+        cancelDrawingEdge();
+        return;
+      }
+      // 软类型校验：端口名是否在 manifest 声明
+      const fromNode = state.nodes.find(n => n.id === fromId);
+      const toNode = state.nodes.find(n => n.id === toId);
+      const fromManifest = fromNode && TOOL_MANIFESTS.find(t => t.id === fromNode.tool);
+      const toManifest = toNode && TOOL_MANIFESTS.find(t => t.id === toNode.tool);
+      const fromOutOk = fromManifest && (fromManifest.outputs || []).some(o => o.name === fromOutput);
+      const toInOk = toManifest && (toManifest.inputs || []).some(i => i.name === toPort);
+      if (!fromOutOk || !toInOk) {
+        showToast(`端口不匹配：${fromOutput} → ${toPort}（已创建，请检查）`, 'warning');
+      }
+      const edge = {
+        id: 'e' + (state.nextEdgeId++),
+        from: fromId,
+        to: toId,
+        fromOutput,
+        toInput: toPort
+      };
+      pushHistory();
+      state.edges.push(edge);
     }
     cancelDrawingEdge();
     renderEdges();
+    markDirty();
+  }
+
+  /**
+   * 环检测：对临时边集合做 Kahn 拓扑，若不能遍历全部节点则有环
+   * 仅基于 from/to（忽略条件分支语义），保守检测
+   */
+  function wouldCreateCycle(edges) {
+    const inDegree = {};
+    const adj = {};
+    const nodeSet = new Set();
+    edges.forEach(e => {
+      nodeSet.add(e.from);
+      nodeSet.add(e.to);
+    });
+    nodeSet.forEach(id => { inDegree[id] = 0; adj[id] = []; });
+    edges.forEach(e => {
+      if (adj[e.from]) {
+        adj[e.from].push(e.to);
+        inDegree[e.to] = (inDegree[e.to] || 0) + 1;
+      }
+    });
+    const queue = [];
+    Object.keys(inDegree).forEach(id => { if (inDegree[id] === 0) queue.push(id); });
+    let visited = 0;
+    while (queue.length) {
+      const id = queue.shift();
+      visited++;
+      (adj[id] || []).forEach(next => {
+        inDegree[next]--;
+        if (inDegree[next] === 0) queue.push(next);
+      });
+    }
+    return visited !== nodeSet.size;
   }
 
   function cancelDrawingEdge() {
@@ -551,10 +995,10 @@
   }
 
   function renderEdges() {
-    // 清除现有连线（保留 drawing 中的）
-    el.svg.querySelectorAll('.workflow-edge:not(.workflow-edge-drawing)').forEach(p => p.remove());
+    const currentEdgeIds = new Set();
 
-    state.edges.forEach((edge, index) => {
+    state.edges.forEach(edge => {
+      currentEdgeIds.add(edge.id);
       const fromNode = state.nodes.find(n => n.id === edge.from);
       const toNode = state.nodes.find(n => n.id === edge.to);
       if (!fromNode || !toNode) return;
@@ -566,45 +1010,63 @@
       const toInputIndex = (toManifest?.inputs || []).findIndex(i => i.name === edge.toInput);
 
       const fromX = fromNode.x + NODE_WIDTH + PORT_RADIUS;
-      const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0, fromNode.id);
+      const fromY = fromNode.y + getPortY(fromOutputIndex >= 0 ? fromOutputIndex : 0);
       const toX = toNode.x - PORT_RADIUS;
-      const toY = toNode.y + getPortY(toInputIndex >= 0 ? toInputIndex : 0, toNode.id);
+      const toY = toNode.y + getPortY(toInputIndex >= 0 ? toInputIndex : 0);
 
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      let path = _edgePathMap.get(edge.id);
+      if (!path) {
+        // 新边：创建 path 元素，绑定一次事件
+        path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('data-edge-id', edge.id);
+        path.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectEdge(edge.id);
+        });
+        el.svg.appendChild(path);
+        _edgePathMap.set(edge.id, path);
+      }
+
+      // 更新 class（条件分支可能切换 true/false）
       let edgeClass = 'workflow-edge';
       if (fromNode.tool === '__condition') {
         edgeClass += edge.fromOutput === 'true' ? ' workflow-edge-true' : ' workflow-edge-false';
       }
       path.setAttribute('class', edgeClass);
-      path.setAttribute('data-edge-index', index);
-      path.setAttribute('d', `M ${fromX} ${fromY} C ${fromX + 80} ${fromY}, ${toX - 80} ${toY}, ${toX} ${toY}`);
-      path.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectEdge(index);
-      });
-      el.svg.appendChild(path);
+      path.setAttribute('d', `M ${fromX} ${fromY} C ${fromX + 160} ${fromY}, ${toX - 160} ${toY}, ${toX} ${toY}`);
+    });
+
+    // 删除已不存在的边对应的 path
+    _edgePathMap.forEach((path, edgeId) => {
+      if (!currentEdgeIds.has(edgeId)) {
+        path.remove();
+        _edgePathMap.delete(edgeId);
+      }
     });
 
     // 恢复选中状态
     if (state.selectedEdge !== null) {
-      const path = el.svg.querySelector(`[data-edge-index="${state.selectedEdge}"]`);
+      const path = _edgePathMap.get(state.selectedEdge);
       if (path) path.classList.add('is-selected');
     }
   }
 
-  function selectEdge(index) {
-    state.selectedEdge = index;
+  function selectEdge(edgeId) {
+    state.selectedEdge = edgeId;
     state.selectedNode = null;
     document.querySelectorAll('.workflow-node').forEach(n => n.classList.remove('is-selected'));
-    el.svg.querySelectorAll('.workflow-edge').forEach(p => p.classList.toggle('is-selected', Number(p.dataset.edgeIndex) === index));
+    el.svg.querySelectorAll('.workflow-edge').forEach(p => p.classList.toggle('is-selected', p.dataset.edgeId === edgeId));
     renderProps();
   }
 
-  function removeEdge(index) {
-    state.edges.splice(index, 1);
-    state.selectedEdge = null;
+  function removeEdge(edgeId) {
+    pushHistory();
+    const idx = state.edges.findIndex(e => e.id === edgeId);
+    if (idx >= 0) state.edges.splice(idx, 1);
+    if (state.selectedEdge === edgeId) state.selectedEdge = null;
     renderEdges();
     renderProps();
+    markDirty();
   }
 
   function updateNodeStatusBadges() {
@@ -617,6 +1079,9 @@
       if (node.__lastError) {
         badge.textContent = '✗';
         badge.className = 'workflow-node-status is-error';
+      } else if (node.__lastResult && node.__lastResult.__skipped) {
+        badge.textContent = '–';
+        badge.className = 'workflow-node-status is-skipped';
       } else if (node.__lastResult) {
         badge.textContent = '✓';
         badge.className = 'workflow-node-status is-success';
@@ -629,7 +1094,7 @@
 
   // ── 边属性面板 ──
   function renderEdgeProps() {
-    const edge = state.edges[state.selectedEdge];
+    const edge = state.edges.find(e => e.id === state.selectedEdge);
     if (!edge) {
       el.props.innerHTML = '<div class="workflow-props-placeholder">选中连线以查看信息</div>';
       return;
@@ -643,13 +1108,13 @@
         <button class="btn btn-sm btn-danger" data-action="delete-edge">删除</button>
       </div>
       <div class="workflow-prop-row">
-        <span class="workflow-prop-port">从：${escapeHtml(fromNode?.name || edge.from)} (${edge.from})</span>
+        <span class="workflow-prop-port">从：${escapeHtml(fromNode?.name || edge.from)} (${escapeHtml(edge.from)})</span>
       </div>
       <div class="workflow-prop-row">
-        <span class="workflow-prop-port">到：${escapeHtml(toNode?.name || edge.to)} (${edge.to})</span>
+        <span class="workflow-prop-port">到：${escapeHtml(toNode?.name || edge.to)} (${escapeHtml(edge.to)})</span>
       </div>
       <div class="workflow-prop-row">
-        <span class="workflow-prop-port">${edge.fromOutput} → ${edge.toInput}</span>
+        <span class="workflow-prop-port">${escapeHtml(edge.fromOutput)} → ${escapeHtml(edge.toInput)}</span>
       </div>
     `;
 
@@ -658,7 +1123,7 @@
         <div class="workflow-props-section">条件分支</div>
         <div class="workflow-prop-row">
           <label class="workflow-prop-label">分支类型</label>
-          <select class="workflow-prop-input" data-edge-branch="${state.selectedEdge}">
+          <select class="workflow-prop-input" data-edge-branch="${escapeHtml(edge.id)}">
             <option value="true" ${edge.fromOutput === 'true' ? 'selected' : ''}>满足条件 (true)</option>
             <option value="false" ${edge.fromOutput === 'false' ? 'selected' : ''}>不满足条件 (false)</option>
           </select>
@@ -670,11 +1135,14 @@
 
     el.props.querySelectorAll('[data-edge-branch]').forEach(sel => {
       sel.addEventListener('change', () => {
-        const idx = Number(sel.dataset.edgeBranch);
+        const eid = sel.dataset.edgeBranch;
         const branch = sel.value;
-        if (state.edges[idx]) {
-          state.edges[idx].fromOutput = branch;
+        const target = state.edges.find(e => e.id === eid);
+        if (target) {
+          pushHistory();
+          target.fromOutput = branch;
           renderEdges();
+          markDirty();
         }
       });
     });
@@ -697,8 +1165,9 @@
 
     let html = `
       <div class="workflow-props-header">
-        <span class="workflow-props-icon">${node.icon}</span>
-        <span class="workflow-props-name">${node.name} <span style="color:var(--color-text-muted);font-weight:400;font-size:0.85em;">(${node.id})</span></span>
+        <span class="workflow-props-icon">${escapeHtml(node.icon)}</span>
+        <input type="text" class="workflow-props-name-input" data-node-name value="${escapeHtml(node.name)}" placeholder="${escapeHtml(node.tool)}">
+        <span class="workflow-props-node-id">${escapeHtml(node.id)}</span>
         <button class="btn btn-sm btn-danger" data-action="delete-node">删除</button>
       </div>
     `;
@@ -716,20 +1185,20 @@
         if (p.type === 'select') {
           html += `
             <div class="workflow-prop-row">
-              <label class="workflow-prop-label">${p.label}</label>
-              <select class="workflow-prop-input" data-param="${p.name}">
+              <label class="workflow-prop-label">${escapeHtml(p.label)}</label>
+              <select class="workflow-prop-input" data-param="${escapeHtml(p.name)}">
                 ${p.options.map(o => {
                   const optVal = typeof o === 'object' ? o.value : o;
                   const optLabel = typeof o === 'object' ? o.label : o;
-                  return `<option value="${optVal}" ${optVal === val ? 'selected' : ''}>${optLabel}</option>`;
+                  return `<option value="${escapeHtml(optVal)}" ${optVal === val ? 'selected' : ''}>${escapeHtml(optLabel)}</option>`;
                 }).join('')}
               </select>
             </div>`;
         } else {
           html += `
             <div class="workflow-prop-row">
-              <label class="workflow-prop-label">${p.label}</label>
-              <input type="text" class="workflow-prop-input" data-param="${p.name}" value="${val}" placeholder="支持 {{节点ID.字段名}} 表达式引用">
+              <label class="workflow-prop-label">${escapeHtml(p.label)}</label>
+              <input type="text" class="workflow-prop-input" data-param="${escapeHtml(p.name)}" value="${escapeHtml(val)}" placeholder="支持 {{节点ID.字段名}} 表达式引用">
             </div>`;
         }
       });
@@ -743,14 +1212,14 @@
         if (connected) {
           html += `
             <div class="workflow-prop-row">
-              <span class="workflow-prop-port is-connected">${i.label}（已连接上游）</span>
+              <span class="workflow-prop-port is-connected">${escapeHtml(i.label)}（已连接上游）</span>
             </div>`;
         } else {
           const val = node.initialInputs[i.name] ?? '';
           html += `
             <div class="workflow-prop-row">
-              <label class="workflow-prop-label">${i.label}</label>
-              <textarea class="workflow-prop-input workflow-prop-textarea" data-input="${i.name}" rows="4" placeholder="输入初始值，支持 {{节点ID.字段名}} 表达式引用">${escapeHtml(val)}</textarea>
+              <label class="workflow-prop-label">${escapeHtml(i.label)}</label>
+              <textarea class="workflow-prop-input workflow-prop-textarea" data-input="${escapeHtml(i.name)}" rows="4" placeholder="输入初始值，支持 {{节点ID.字段名}} 表达式引用">${escapeHtml(val)}</textarea>
             </div>`;
         }
       });
@@ -763,7 +1232,7 @@
         const connected = state.edges.some(e => e.from === node.id && e.fromOutput === o.name);
         html += `
           <div class="workflow-prop-row">
-            <span class="workflow-prop-port ${connected ? 'is-connected' : ''}">${o.label}</span>
+            <span class="workflow-prop-port ${connected ? 'is-connected' : ''}">${escapeHtml(o.label)}</span>
           </div>`;
       });
     }
@@ -810,12 +1279,12 @@
           if (Array.isArray(val)) {
             html += `
               <div class="workflow-prop-row">
-                <span class="workflow-prop-port">${key} — ${val.length} 项（供下游节点使用）</span>
+                <span class="workflow-prop-port">${escapeHtml(key)} — ${val.length} 项（供下游节点使用）</span>
               </div>`;
           } else if (typeof val === 'object' && val !== null) {
             html += `
               <div class="workflow-prop-row">
-                <label class="workflow-prop-label">${key}</label>
+                <label class="workflow-prop-label">${escapeHtml(key)}</label>
                 <pre class="workflow-result-code"><code>${escapeHtml(JSON.stringify(val, null, 2))}</code></pre>
               </div>`;
           }
@@ -835,7 +1304,9 @@
     el.props.querySelectorAll('[data-param]').forEach(input => {
       input.addEventListener('change', () => {
         const paramName = input.dataset.param;
+        pushHistory();
         node.params[paramName] = input.value;
+        markDirty();
         // select 变更可能触发 visibleWhen，重新渲染面板
         if (input.tagName === 'SELECT') {
           renderProps();
@@ -845,56 +1316,121 @@
 
     // 绑定初始输入变更
     el.props.querySelectorAll('[data-input]').forEach(input => {
+      // focus 时记录原始值，change 时若变了就 push 历史
+      let originalValue = null;
+      input.addEventListener('focus', () => {
+        originalValue = input.value;
+      });
       input.addEventListener('input', () => {
         const inputName = input.dataset.input;
         node.initialInputs[inputName] = input.value;
+        markDirty();
+      });
+      input.addEventListener('change', () => {
+        if (originalValue !== null && originalValue !== input.value) {
+          // 把原始值回写后 push，再恢复新值，让 undo 能回到原始值
+          const inputName = input.dataset.input;
+          const newVal = input.value;
+          input.value = originalValue;
+          node.initialInputs[inputName] = originalValue;
+          pushHistory();
+          input.value = newVal;
+          node.initialInputs[inputName] = newVal;
+        }
+      });
+    });
+
+    // 绑定节点重命名
+    el.props.querySelectorAll('[data-node-name]').forEach(input => {
+      let originalName = null;
+      input.addEventListener('focus', () => {
+        originalName = input.value;
+      });
+      input.addEventListener('change', () => {
+        const newName = input.value.trim();
+        if (newName && originalName !== null && newName !== originalName) {
+          pushHistory();
+          node.name = newName;
+          // 同步更新画布上的节点名称
+          const div = document.getElementById(node.id);
+          if (div) {
+            const nameEl = div.querySelector('.workflow-node-name');
+            if (nameEl) nameEl.textContent = newName;
+          }
+          markDirty();
+        } else if (!newName) {
+          input.value = originalName;
+        }
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          input.blur();
+        }
       });
     });
   }
 
   // ── 运行 ──
   async function doRun() {
+    if (state.running) { showToast('工作流正在执行中', 'warning', 1500); return; }
     if (!state.nodes.length) { showToast('画布上没有节点', 'warning'); return; }
 
-    el.logsBody.innerHTML = '<div class="workflow-log-item is-info">开始执行工作流…</div>';
+    state.running = true;
+    if (el.runBtn) { el.runBtn.disabled = true; el.runBtn.textContent = '执行中…'; }
 
-    // 清除旧结果状态
-    state.nodes.forEach(n => { n.__lastResult = null; n.__lastError = null; });
-
-    const workflow = {
-      nodes: state.nodes.map(n => ({ id: n.id, tool: n.tool, params: n.params, initialInputs: n.initialInputs })),
-      edges: state.edges.map(e => ({ ...e }))
-    };
-
-    const engine = new window.WorkflowEngine();
     try {
-      const result = await engine.run(workflow);
+      el.logsBody.innerHTML = '<div class="workflow-log-item is-info">开始执行工作流…</div>';
+
+      // 清除旧结果状态
+      state.nodes.forEach(n => { n.__lastResult = null; n.__lastError = null; });
+      updateNodeStatusBadges();
+
+      const workflow = {
+        nodes: state.nodes.map(n => ({ id: n.id, tool: n.tool, params: n.params, initialInputs: n.initialInputs })),
+        edges: state.edges.map(e => ({ ...e }))
+      };
+
+      const engine = new window.WorkflowEngine();
+      let result;
+      try {
+        result = await engine.run(workflow, { continueOnError: false });
+      } catch (err) {
+        appendLog(`执行启动失败: ${err.message}`, 'error');
+        showToast(err.message, 'error');
+        return;
+      }
+
+      // 将引擎日志回填到节点状态
       result.logs.forEach(log => {
+        if (log.nodeId === '__engine') {
+          appendLog(`[engine] ${log.message}`, log.status === 'warning' ? 'warning' : 'info');
+          return;
+        }
         const node = state.nodes.find(n => n.id === log.nodeId);
         if (node) {
           node.__lastResult = log.output;
           node.__lastError = log.error || null;
         }
-        appendLog(`[${log.nodeId}] ${log.tool} — ${log.status === 'success' ? '成功' : '失败'} (${log.duration}ms)`);
+        const statusText = log.status === 'success' ? '成功' :
+                            log.status === 'skipped' ? '跳过' :
+                            log.status === 'warning' ? '警告' : '失败';
+        appendLog(`[${log.nodeId}] ${log.tool} — ${statusText} (${log.duration}ms)`);
       });
+
       updateNodeStatusBadges();
       renderProps();
       renderFinalResults(engine);
-      showToast('工作流执行完成', 'success');
-    } catch (err) {
-      // 已经执行过的节点也保存结果
-      engine.logs.forEach(log => {
-        const node = state.nodes.find(n => n.id === log.nodeId);
-        if (node) {
-          node.__lastResult = log.output;
-          node.__lastError = log.error || null;
-        }
-      });
-      updateNodeStatusBadges();
-      renderProps();
-      renderFinalResults(engine);
-      appendLog(`执行中断: ${err.message}`, 'error');
-      showToast(err.message, 'error');
+
+      if (result.error) {
+        appendLog(`执行中断: ${result.error}`, 'error');
+        showToast(result.error, 'error');
+      } else {
+        showToast('工作流执行完成', 'success');
+      }
+    } finally {
+      state.running = false;
+      if (el.runBtn) { el.runBtn.disabled = false; el.runBtn.textContent = '运行'; }
     }
   }
 
@@ -952,8 +1488,8 @@
     return `
       <div class="workflow-result-item">
         <div class="workflow-result-item-header">
-          <span class="workflow-result-item-icon">${node.icon}</span>
-          <span class="workflow-result-item-name">${escapeHtml(toolName)} (${node.id})</span>
+        <span class="workflow-result-item-icon">${escapeHtml(node.icon)}</span>
+        <span class="workflow-result-item-name">${escapeHtml(toolName)} (${escapeHtml(node.id)})</span>
           <span class="workflow-result-item-status ${statusClass}">${statusText}</span>
         </div>
         <div class="workflow-result-item-body">${bodyHtml}</div>
@@ -1042,17 +1578,117 @@
   }
 
   function doClear() {
+    stopAutoRun();
+    if (el.autoRunToggle) el.autoRunToggle.checked = false;
+    pushHistory();
     state.nodes = [];
     state.edges = [];
     state.selectedNode = null;
     state.selectedEdge = null;
-    state.nextId = 1;
+    state.nextNodeId = 1;
+    state.nextEdgeId = 1;
+    state.lastSavedName = null;
     el.nodesLayer.innerHTML = '';
     el.svg.innerHTML = '';
+    _edgePathMap.clear();
     renderProps();
     el.logsBody.innerHTML = '';
     doClearResults();
+    resetZoom();
+    markDirty();
     showToast('画布已清空', 'success');
+  }
+
+  // ── 自动布局：Kahn 拓扑分层 + 同层竖向居中 ──
+  function autoLayout() {
+    if (!state.nodes.length) {
+      showToast('画布上没有节点', 'warning');
+      return;
+    }
+
+    pushHistory();
+
+    // 1. 计算入度和邻接表
+    const inDegree = {};
+    const outAdj = {};
+    state.nodes.forEach(n => { inDegree[n.id] = 0; outAdj[n.id] = []; });
+    state.edges.forEach(e => {
+      if (outAdj[e.from]) {
+        outAdj[e.from].push(e.to);
+        inDegree[e.to] = (inDegree[e.to] || 0) + 1;
+      }
+    });
+
+    // 2. Kahn 分层 BFS
+    const layers = [];
+    let currentLayer = state.nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
+    const processed = new Set();
+
+    while (currentLayer.length > 0) {
+      layers.push(currentLayer);
+      currentLayer.forEach(id => processed.add(id));
+      const next = [];
+      for (const id of currentLayer) {
+        for (const target of (outAdj[id] || [])) {
+          inDegree[target]--;
+          if (inDegree[target] === 0 && !processed.has(target)) {
+            next.push(target);
+          }
+        }
+      }
+      currentLayer = next;
+    }
+
+    // 处理环中的节点（Kahn 未覆盖的）— 放到最后一层
+    const unprocessed = state.nodes.filter(n => !processed.has(n.id));
+    if (unprocessed.length > 0) {
+      layers.push(unprocessed.map(n => n.id));
+    }
+
+    // 3. 按层排列：X = layer * LAYER_SPACING，Y = 层内累加
+    const LAYER_SPACING = NODE_WIDTH + 100;  // 层间距（节点宽 + gap）
+    const NODE_GAP_Y = 40;                    // 同层节点竖向间距
+    const START_X = 60;
+    const START_Y = 40;
+
+    const nodeMap = {};
+    state.nodes.forEach(n => { nodeMap[n.id] = n; });
+
+    layers.forEach((layer, layerIdx) => {
+      // 计算本层总高度，用于居中
+      let totalHeight = 0;
+      const heights = layer.map(id => {
+        const node = nodeMap[id];
+        const manifest = TOOL_MANIFESTS.find(t => t.id === node.tool);
+        const maxPorts = Math.max(
+          (manifest?.inputs || []).length,
+          (manifest?.outputs || []).length
+        );
+        const h = maxPorts > 0
+          ? NODE_HEADER_H + maxPorts * PORT_SPACING + PORT_START_Y * 2
+          : NODE_HEADER_H;
+        totalHeight += h;
+        return h;
+      });
+      totalHeight += (layer.length - 1) * NODE_GAP_Y;
+
+      let y = START_Y - totalHeight / 2 + 100; // 略偏下，留出顶部空间
+      layer.forEach((id, i) => {
+        const node = nodeMap[id];
+        node.x = START_X + layerIdx * LAYER_SPACING;
+        node.y = y;
+        y += heights[i] + NODE_GAP_Y;
+      });
+    });
+
+    // 4. 应用新坐标
+    state.nodes.forEach(n => {
+      const div = document.getElementById(n.id);
+      if (div) div.style.transform = `translate(${n.x}px, ${n.y}px)`;
+    });
+    renderEdges();
+    markDirty();
+    showToast('已自动排列 ' + state.nodes.length + ' 个节点', 'success');
   }
 
   function doClearLogs() {
@@ -1129,6 +1765,24 @@
     state.autoRun.enabled = true;
     updateAutoRunUI();
     scheduleNext();
+    // 启动倒计时刷新 interval
+    if (!state.autoRun.countdownTimerId) {
+      state.autoRun.countdownTimerId = setInterval(() => {
+        if (!state.autoRun.enabled) return;
+        // cron 模式下，若 nextRun 已过期，从 cronJob 拉取下一次执行时间
+        if (state.autoRun.cronJob && state.autoRun.nextRun && Date.now() >= state.autoRun.nextRun) {
+          try {
+            const nextDt = state.autoRun.cronJob.nextRuns(1);
+            if (nextDt && nextDt.length) {
+              state.autoRun.nextRun = nextDt[0].getTime();
+            }
+          } catch (e) { /* 忽略 */ }
+        }
+        if (state.autoRun.nextRun) {
+          updateAutoRunUI();
+        }
+      }, 1000);
+    }
   }
 
   function stopAutoRun() {
@@ -1137,6 +1791,14 @@
       clearTimeout(state.autoRun.timerId);
       state.autoRun.timerId = null;
     }
+    if (state.autoRun.cronJob) {
+      try { state.autoRun.cronJob.stop(); } catch (e) { /* 兼容老版 croner 无 stop 方法 */ }
+      state.autoRun.cronJob = null;
+    }
+    if (state.autoRun.countdownTimerId) {
+      clearInterval(state.autoRun.countdownTimerId);
+      state.autoRun.countdownTimerId = null;
+    }
     state.autoRun.nextRun = null;
     updateAutoRunUI();
   }
@@ -1144,45 +1806,62 @@
   function scheduleNext() {
     if (!state.autoRun.enabled) return;
 
+    // 先清理所有现有定时器/cron job，避免旧 job 泄漏
+    if (state.autoRun.timerId) { clearTimeout(state.autoRun.timerId); state.autoRun.timerId = null; }
+    if (state.autoRun.cronJob) {
+      try { state.autoRun.cronJob.stop(); } catch (e) { /* 忽略 */ }
+      state.autoRun.cronJob = null;
+    }
+
     const mode = el.autoRunMode ? el.autoRunMode.value : 'interval';
     const expr = el.autoRunExpr ? el.autoRunExpr.value.trim() : '5';
-    let delayMs;
 
     if (mode === 'interval') {
       const seconds = parseFloat(expr) || 5;
-      delayMs = Math.max(1000, seconds * 1000);
-    } else {
-      try {
-        if (typeof Cron === 'undefined') {
-          throw new Error('Croner 库未加载');
-        }
-        const job = new Cron(expr);
-        const runs = job.nextRuns(1);
-        if (!runs || !runs.length) {
-          throw new Error('无法计算下次执行时间');
-        }
-        delayMs = runs[0].getTime() - Date.now();
-        if (delayMs < 0) delayMs = 0;
-      } catch (e) {
-        showToast('Cron 表达式错误: ' + e.message, 'error');
-        stopAutoRun();
-        if (el.autoRunToggle) el.autoRunToggle.checked = false;
-        return;
-      }
+      const delayMs = Math.max(1000, seconds * 1000);
+      state.autoRun.nextRun = Date.now() + delayMs;
+      updateAutoRunUI();
+      state.autoRun.timerId = setTimeout(async () => {
+        if (!state.autoRun.enabled) return;
+        if (state.running) { scheduleNext(); return; }
+        try { await doRun(); } catch (e) { /* doRun 内部已处理错误 */ }
+        scheduleNext();
+      }, delayMs);
+      return;
     }
 
-    state.autoRun.nextRun = Date.now() + delayMs;
-    updateAutoRunUI();
+    // cron 模式：优先用 croner 内置调度（无漂移），不可用时回退到 setTimeout
+    if (typeof Cron === 'undefined') {
+      showToast('Croner 库未加载', 'error');
+      stopAutoRun();
+      if (el.autoRunToggle) el.autoRunToggle.checked = false;
+      return;
+    }
 
-    state.autoRun.timerId = setTimeout(async () => {
-      if (!state.autoRun.enabled) return;
-      try {
-        await doRun();
-      } catch (e) {
-        // doRun 内部已处理错误
+    let job;
+    try {
+      // croner 支持传入回调，会自动按 cron 周期触发
+      job = new Cron(expr, { protect: true }, async () => {
+        if (!state.autoRun.enabled) return;
+        if (state.running) return;
+        try { await doRun(); } catch (e) { /* 忽略，protect:true 会保证下一次仍触发 */ }
+      });
+    } catch (e) {
+      showToast('Cron 表达式错误: ' + e.message, 'error');
+      stopAutoRun();
+      if (el.autoRunToggle) el.autoRunToggle.checked = false;
+      return;
+    }
+
+    state.autoRun.cronJob = job;
+    // 仍要计算 nextRun 用于倒计时显示
+    try {
+      const nextDt = job.nextRuns(1);
+      if (nextDt && nextDt.length) {
+        state.autoRun.nextRun = nextDt[0].getTime();
       }
-      scheduleNext();
-    }, delayMs);
+    } catch (e) { /* 忽略 */ }
+    updateAutoRunUI();
   }
 
   function updateAutoRunUI() {
@@ -1210,7 +1889,10 @@
 
   const ACTIONS = {
     run: doRun,
+    undo: doUndo,
+    redo: doRedo,
     clear: doClear,
+    'auto-layout': autoLayout,
     save: doSave,
     load: doLoad,
     'save-local': doSaveLocal,
@@ -1218,7 +1900,10 @@
     'clear-logs': doClearLogs,
     'clear-results': doClearResults,
     'delete-node': doDeleteNode,
-    'delete-edge': doDeleteEdge
+    'delete-edge': doDeleteEdge,
+    'zoom-in': () => setZoom(state.viewport.scale * 1.2),
+    'zoom-out': () => setZoom(state.viewport.scale / 1.2),
+    'zoom-reset': resetZoom
   };
 
   init();
