@@ -46,6 +46,16 @@
     elements.bulkDefaultCategory = document.getElementById('bulk-default-category');
     elements.bookmarksHtml = document.getElementById('bookmarks-html');
     elements.bookmarksCategory = document.getElementById('bookmarks-category');
+
+    elements.selectModal = document.getElementById('select-modal');
+    elements.selectModalTitle = document.getElementById('select-modal-title');
+    elements.selectTree = document.getElementById('select-tree');
+    elements.selectCount = document.getElementById('select-count');
+    elements.selectConfirmBtn = document.getElementById('select-confirm-btn');
+    elements.importOptions = document.getElementById('import-options');
+    elements.importCustomCategory = document.getElementById('import-custom-category');
+    elements.importCategorySelect = document.getElementById('import-category-select');
+    elements.importCategoryInput = document.getElementById('import-category-input');
   }
 
   function bindEvents() {
@@ -85,6 +95,32 @@
         setImportMode(btn.dataset.importMode);
       });
     });
+
+    // 选择弹窗：checkbox 联动（事件委托，树是动态渲染的）
+    elements.selectTree.addEventListener('change', handleSelectTreeChange);
+
+    // 导入弹窗：分类处理 radio 切换显示自定义分类
+    document.querySelectorAll('input[name="import-category-mode"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const isCustom = getRadioValue('import-category-mode') === 'custom';
+        elements.importCustomCategory.classList.toggle('u-hidden', !isCustom);
+      });
+    });
+
+    // 导入弹窗：选"新建分类"时切换到文本输入
+    elements.importCategorySelect.addEventListener('change', () => {
+      if (elements.importCategorySelect.value === '__new__') {
+        elements.importCategorySelect.classList.add('u-hidden');
+        elements.importCategoryInput.classList.remove('u-hidden');
+        elements.importCategoryInput.value = '';
+        elements.importCategoryInput.focus();
+      }
+    });
+  }
+
+  function getRadioValue(name) {
+    const checked = document.querySelector(`input[name="${name}"]:checked`);
+    return checked ? checked.value : '';
   }
 
   function handleActionClick(e) {
@@ -493,16 +529,181 @@
     showToast(`已将 ${count} 条链接的分类更新为「${trimmed}」`, 'success');
   }
 
+  // ---------------- Selective export / import ----------------
+  const selectState = {
+    mode: null,          // 'export' | 'import'
+    links: [],           // 待选择的链接列表
+    importConfig: null   // 导入模式下的完整配置文件
+  };
+
   function exportConfig() {
-    const order = storage.get(STORAGE_KEYS.ORDER, []);
-    const meta = storage.get(STORAGE_KEYS.META, {});
-    const categoryOrder = storage.get(STORAGE_KEYS.CATEGORY_ORDER, []);
+    if (state.links.length === 0) {
+      showToast('没有可导出的链接', 'warning');
+      return;
+    }
+    openSelectModal('export', state.links, null);
+  }
+
+  function importConfig(config) {
+    if (!config.links || !Array.isArray(config.links) || config.links.length === 0) {
+      showToast('无效的配置文件', 'error');
+      return;
+    }
+    openSelectModal('import', config.links, config);
+  }
+
+  function openSelectModal(mode, links, importConfig) {
+    selectState.mode = mode;
+    selectState.links = links;
+    selectState.importConfig = importConfig;
+
+    elements.selectModalTitle.textContent = mode === 'export' ? '选择导出内容' : '选择导入内容';
+    elements.selectConfirmBtn.textContent = mode === 'export' ? '确认导出' : '确认导入';
+    elements.importOptions.classList.toggle('u-hidden', mode !== 'import');
+
+    if (mode === 'import') {
+      // 重置选项为默认值
+      document.querySelector('input[name="import-strategy"][value="merge"]').checked = true;
+      document.querySelector('input[name="import-category-mode"][value="keep"]').checked = true;
+      elements.importCustomCategory.classList.add('u-hidden');
+      resetImportCategoryField();
+    }
+
+    renderSelectTree(links);
+    elements.selectModal.classList.remove('u-hidden');
+  }
+
+  function closeSelectModal() {
+    elements.selectModal.classList.add('u-hidden');
+    selectState.mode = null;
+    selectState.links = [];
+    selectState.importConfig = null;
+  }
+
+  /** 渲染分类-链接树，默认全选 */
+  function renderSelectTree(links) {
+    const sorted = selectState.mode === 'export' ? sortLinks(links.slice()) : links;
+    const grouped = groupByCategory(sorted);
+    // 分类顺序：导出用当前顺序，导入用文件中的顺序（均无本地副作用）
+    const savedOrder = (selectState.mode === 'import' && selectState.importConfig && Array.isArray(selectState.importConfig.categoryOrder))
+      ? selectState.importConfig.categoryOrder
+      : getCategoryOrder();
+    const categories = sortByCustomOrder(Object.keys(grouped), savedOrder);
+
+    elements.selectTree.innerHTML = categories.map(category => {
+      const catLinks = grouped[category];
+      return `
+        <div class="select-category">
+          <label class="select-category-header">
+            <input type="checkbox" data-select-category checked>
+            <span>${escapeHtml(category)}</span>
+            <span class="select-category-count">(${catLinks.length})</span>
+          </label>
+          <div class="select-link-list">
+            ${catLinks.map(link => `
+              <label class="select-link-item">
+                <input type="checkbox" data-select-id="${escapeHtml(link.id)}" checked>
+                <span class="link-icon">${link.icon || '🔗'}</span>
+                <span class="select-link-name" title="${escapeHtml(link.url)}">${escapeHtml(link.name)}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+    updateSelectCount();
+  }
+
+  /** 纯函数：按给定顺序排序分类，未出现的按名称排在末尾 */
+  function sortByCustomOrder(categories, order) {
+    const indexMap = new Map(order.map((c, i) => [c, i]));
+    return categories.slice().sort((a, b) => {
+      const ai = indexMap.has(a) ? indexMap.get(a) : Number.MAX_SAFE_INTEGER;
+      const bi = indexMap.has(b) ? indexMap.get(b) : Number.MAX_SAFE_INTEGER;
+      if (ai !== bi) return ai - bi;
+      return a.localeCompare(b);
+    });
+  }
+
+  function handleSelectTreeChange(e) {
+    const cb = e.target;
+    if (!(cb instanceof HTMLInputElement) || cb.type !== 'checkbox') return;
+
+    const categoryEl = cb.closest('.select-category');
+    if (cb.hasAttribute('data-select-category')) {
+      // 分类级：联动该分类下所有链接
+      categoryEl.querySelectorAll('[data-select-id]').forEach(child => {
+        child.checked = cb.checked;
+      });
+      cb.indeterminate = false;
+    } else if (cb.hasAttribute('data-select-id')) {
+      // 链接级：刷新分类 checkbox 的选中/半选状态
+      refreshCategoryCheckbox(categoryEl);
+    }
+    updateSelectCount();
+  }
+
+  function refreshCategoryCheckbox(categoryEl) {
+    if (!categoryEl) return;
+    const header = categoryEl.querySelector('[data-select-category]');
+    const total = categoryEl.querySelectorAll('[data-select-id]').length;
+    const checked = categoryEl.querySelectorAll('[data-select-id]:checked').length;
+    header.checked = checked === total;
+    header.indeterminate = checked > 0 && checked < total;
+  }
+
+  function setAllSelected(selected) {
+    elements.selectTree.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = selected;
+      cb.indeterminate = false;
+    });
+    updateSelectCount();
+  }
+
+  function getSelectedIds() {
+    return new Set(
+      Array.from(elements.selectTree.querySelectorAll('[data-select-id]:checked'))
+        .map(cb => cb.dataset.selectId)
+    );
+  }
+
+  function updateSelectCount() {
+    const total = elements.selectTree.querySelectorAll('[data-select-id]').length;
+    const checked = elements.selectTree.querySelectorAll('[data-select-id]:checked').length;
+    elements.selectCount.textContent = `已选 ${checked} / ${total} 条`;
+  }
+
+  function confirmSelect() {
+    if (selectState.mode === 'export') {
+      doExportSelected();
+    } else if (selectState.mode === 'import') {
+      doImportSelected();
+    }
+  }
+
+  function doExportSelected() {
+    const ids = getSelectedIds();
+    if (ids.size === 0) {
+      showToast('请至少选择一条链接', 'warning');
+      return;
+    }
+
+    const links = selectState.links.filter(l => ids.has(l.id));
+    const order = getOrder().filter(id => ids.has(id));
+    const meta = getMetaMap();
+    const filteredMeta = {};
+    ids.forEach(id => {
+      if (meta[id]) filteredMeta[id] = meta[id];
+    });
+    const cats = new Set(links.map(l => l.category || '其他'));
+    const categoryOrder = getCategoryOrder().filter(c => cats.has(c));
+
     const config = {
       version: '2.0.0',
       timestamp: new Date().toISOString(),
-      links: state.links,
+      links,
       order,
-      meta,
+      meta: filteredMeta,
       categoryOrder
     };
 
@@ -517,23 +718,101 @@
     ].join('');
     const json = JSON.stringify(config, null, 2);
     downloadFile(json, `tools-links-config-${ts}.json`, 'application/json');
-    showToast('配置已导出', 'success');
+    closeSelectModal();
+    showToast(`已导出 ${links.length} 条链接`, 'success');
   }
 
-  function importConfig(config) {
-    if (!config.links || !Array.isArray(config.links)) {
-      showToast('无效的配置文件', 'error');
+  function doImportSelected() {
+    const ids = getSelectedIds();
+    if (ids.size === 0) {
+      showToast('请至少选择一条链接', 'warning');
       return;
     }
 
-    state.links = config.links;
-    if (Array.isArray(config.order)) saveOrder(config.order);
-    if (config.meta && typeof config.meta === 'object') saveMetaMap(config.meta);
-    if (Array.isArray(config.categoryOrder)) saveCategoryOrder(config.categoryOrder);
-    applyMetaToLinks(state.links);
-    saveCustomLinks();
+    const strategy = getRadioValue('import-strategy') || 'merge';
+    const catMode = getRadioValue('import-category-mode') || 'keep';
+    const customCategory = catMode === 'custom' ? getImportCategoryValue() : '';
+    if (catMode === 'custom' && !customCategory) {
+      showToast('请选择或输入目标分类', 'warning');
+      return;
+    }
+
+    const links = selectState.links
+      .filter(l => ids.has(l.id))
+      .map(l => ({ ...l }));
+
+    if (customCategory) {
+      links.forEach(l => { l.category = customCategory; });
+    }
+
+    const config = selectState.importConfig || {};
+    const fileMeta = (config.meta && typeof config.meta === 'object') ? config.meta : {};
+
+    if (strategy === 'replace') {
+      if (!confirm(`替换模式将清空当前 ${state.links.length} 条链接，仅保留本次导入的 ${links.length} 条。确定继续吗？`)) {
+        return;
+      }
+      state.links = links;
+      // order：优先沿用文件中的顺序，缺失的追加
+      const fileOrder = Array.isArray(config.order) ? config.order.filter(id => ids.has(id)) : [];
+      links.forEach(l => {
+        if (!fileOrder.includes(l.id)) fileOrder.push(l.id);
+      });
+      saveOrder(fileOrder);
+      // meta：只保留选中项
+      const newMeta = {};
+      ids.forEach(id => {
+        if (fileMeta[id]) newMeta[id] = fileMeta[id];
+      });
+      saveMetaMap(newMeta);
+      // categoryOrder：沿用文件顺序，缺失的追加
+      const cats = Array.from(new Set(links.map(l => l.category || '其他')));
+      const fileCatOrder = Array.isArray(config.categoryOrder) ? config.categoryOrder.filter(c => cats.includes(c)) : [];
+      cats.forEach(c => {
+        if (!fileCatOrder.includes(c)) fileCatOrder.push(c);
+      });
+      saveCategoryOrder(fileCatOrder);
+      applyMetaToLinks(state.links);
+      saveCustomLinks();
+    } else {
+      // 合并：meta 按 id 合并，链接走统一去重逻辑
+      const curMeta = getMetaMap();
+      ids.forEach(id => {
+        if (fileMeta[id]) curMeta[id] = { ...curMeta[id], ...fileMeta[id] };
+      });
+      saveMetaMap(curMeta);
+      mergeImportedLinks(links);
+      saveCustomLinks();
+    }
+
+    // 分类过滤可能指向已不存在的分类，重置为全部
+    state.category = '';
     renderLinks();
-    showToast('配置已导入', 'success');
+    closeSelectModal();
+    showToast(`已导入 ${links.length} 条链接`, 'success');
+  }
+
+  /** 导入弹窗：目标分类下拉选项（基于当前已有分类） */
+  function resetImportCategoryField() {
+    const cats = Array.from(new Set(state.links.map(l => l.category || '其他'))).sort();
+    let html = '<option value="">请选择分类</option>';
+    cats.forEach(c => {
+      html += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`;
+    });
+    html += '<option value="__new__">➕ 新建分类…</option>';
+    elements.importCategorySelect.innerHTML = html;
+    elements.importCategorySelect.value = '';
+    elements.importCategorySelect.classList.remove('u-hidden');
+    elements.importCategoryInput.classList.add('u-hidden');
+    elements.importCategoryInput.value = '';
+  }
+
+  function getImportCategoryValue() {
+    if (!elements.importCategoryInput.classList.contains('u-hidden')) {
+      return elements.importCategoryInput.value.trim();
+    }
+    const v = elements.importCategorySelect.value;
+    return (v && v !== '__new__') ? v : '';
   }
 
   // ---------------- Category ordering ----------------
@@ -913,6 +1192,22 @@
 
     'import-config'() {
       elements.fileInput.click();
+    },
+
+    'close-select-modal'() {
+      closeSelectModal();
+    },
+
+    'select-all'() {
+      setAllSelected(true);
+    },
+
+    'select-none'() {
+      setAllSelected(false);
+    },
+
+    'confirm-select'() {
+      confirmSelect();
     },
 
     'open-bulk-import'() {

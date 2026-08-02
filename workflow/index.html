@@ -22,6 +22,7 @@
       <!-- 左侧工具箱 -->
       <aside class="workflow-sidebar">
         <div class="workflow-sidebar-title">工具箱</div>
+        <input type="text" id="tool-search" class="workflow-tool-search" placeholder="搜索工具…" autocomplete="off">
         <div class="workflow-tool-list" id="tool-list"></div>
       </aside>
 
@@ -32,7 +33,10 @@
           <div class="toolbar-row toolbar-row-primary">
             <div class="toolbar-group">
               <button class="btn btn-primary" data-action="run">运行</button>
+              <button class="btn btn-secondary" data-action="undo" title="撤销 (Ctrl+Z)">↶ 撤销</button>
+              <button class="btn btn-secondary" data-action="redo" title="重做 (Ctrl+Y)">↷ 重做</button>
               <button class="btn btn-secondary" data-action="clear">清空画布</button>
+              <button class="btn btn-secondary" data-action="auto-layout" title="按拓扑层级自动排列节点">⇄ 自动排列</button>
             </div>
             <div class="toolbar-group auto-run-group">
               <label class="auto-run-toggle" title="启用/停止自动执行">
@@ -65,9 +69,16 @@
         </div>
 
         <div class="workflow-canvas" id="workflow-canvas">
-          <svg class="workflow-svg" id="workflow-svg"></svg>
-          <div class="workflow-nodes" id="workflow-nodes"></div>
-          <div class="workflow-hint">双击左侧工具添加到画布，拖拽端口连线</div>
+          <div class="workflow-viewport" id="workflow-viewport">
+            <svg class="workflow-svg" id="workflow-svg"></svg>
+            <div class="workflow-nodes" id="workflow-nodes"></div>
+          </div>
+          <div class="workflow-hint">双击左侧工具添加到画布，拖拽端口连线；滚轮缩放，中键/空格+拖拽平移</div>
+          <div class="workflow-zoom-controls">
+            <button class="btn btn-sm btn-secondary" data-action="zoom-in" title="放大 (+)">+</button>
+            <button class="btn btn-sm btn-secondary" data-action="zoom-out" title="缩小 (-)">−</button>
+            <button class="btn btn-sm btn-secondary" data-action="zoom-reset" title="重置缩放">1:1</button>
+          </div>
         </div>
       </div>
 
