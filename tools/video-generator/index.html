@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频生成器 - Workbench</title>
+  <link rel="stylesheet" href="../../assets/css/variables.css">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/components/tool-layout.css">
+  <link rel="stylesheet" href="../../assets/css/components/buttons.css">
+  <link rel="stylesheet" href="../../assets/css/components/toolbar.css">
+  <link rel="stylesheet" href="../../assets/css/components/card.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tool-container">
+    <header class="tool-header">
+      <h1>视频生成器</h1>
+      <p class="tool-description">纯前端生成测试视频（渐变 / 棋盘格 / 纯色），支持 WebM 格式</p>
+    </header>
+
+    <main class="tool-main">
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <label class="field">
+            <span class="field-label">宽</span>
+            <input id="width" class="field-input" type="number" min="16" max="1920" value="640">
+          </label>
+          <label class="field">
+            <span class="field-label">高</span>
+            <input id="height" class="field-input" type="number" min="16" max="1080" value="360">
+          </label>
+          <label class="field">
+            <span class="field-label">时长(s)</span>
+            <input id="duration" class="field-input" type="number" min="1" max="60" value="5">
+          </label>
+          <label class="field">
+            <span class="field-label">帧率</span>
+            <select id="fps">
+              <option value="10">10</option>
+              <option value="15">15</option>
+              <option value="24">24</option>
+              <option value="30" selected>30</option>
+              <option value="60">60</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">内容</span>
+            <select id="contentType">
+              <option value="gradient" selected>渐变</option>
+              <option value="checkerboard">棋盘格</option>
+              <option value="solid">纯色</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">格式</span>
+            <select id="format"></select>
+          </label>
+        </div>
+
+        <div class="toolbar-group">
+          <button class="btn btn-secondary" data-action="preview" id="previewBtn">预览动画</button>
+          <button class="btn btn-primary" data-action="generate" id="generateBtn">生成视频</button>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="card-body">
+          <div class="vg-config-row">
+            <!-- 颜色模式 -->
+            <div class="field vg-color-mode">
+              <span class="field-label">颜色</span>
+              <div class="vg-mode-toggle" id="colorModeToggle">
+                <button class="vg-mode-btn is-active" data-mode="random">随机</button>
+                <button class="vg-mode-btn" data-mode="custom">自定义</button>
+              </div>
+              <button class="btn btn-secondary vg-random-btn" id="randomBtn" title="换一组随机颜色">🎲</button>
+            </div>
+            <!-- 颜色 1 -->
+            <label class="field">
+              <span class="field-label" id="color1Label">颜色 1</span>
+              <input id="color1" class="field-input field-color" type="color" value="#ff6b6b">
+            </label>
+            <!-- 颜色 2（所有模式都用） -->
+            <label class="field vg-color2">
+              <span class="field-label">颜色 2</span>
+              <input id="color2" class="field-input field-color" type="color" value="#4ecdc4">
+            </label>
+            <!-- 格子大小（棋盘格） -->
+            <label class="field vg-square">
+              <span class="field-label">格子大小</span>
+              <input id="squareSize" class="field-input" type="number" min="4" max="200" value="40">
+            </label>
+            <!-- 文件名 -->
+            <label class="field vg-filename">
+              <span class="field-label">文件名</span>
+              <input id="filename" class="field-input" type="text" placeholder="test-video" value="test-video">
+            </label>
+          </div>
+
+          <div class="vg-preview-wrap">
+            <canvas id="canvas" class="vg-canvas"></canvas>
+            <div class="vg-progress" id="progress" hidden>
+              <div class="vg-progress-bar">
+                <div class="vg-progress-fill" id="progressFill"></div>
+              </div>
+              <span class="vg-progress-text" id="progressText">0.0s / 0.0s</span>
+            </div>
+          </div>
+
+          <div class="vg-meta" id="meta"></div>
+
+          <div class="vg-result" id="result" hidden>
+            <video id="videoPlayer" class="vg-video-player" controls></video>
+            <button class="btn btn-primary" data-action="download" id="downloadBtn">下载视频</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="tool-footer">
+      <p>使用 Canvas + MediaRecorder API 在浏览器本地录制，不会上传任何数据</p>
+    </footer>
+  </div>
+
+  <script src="../../assets/js/utils.js"></script>
+  <script src="../../assets/js/tool-registry.js"></script>
+  <script src="manifest.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

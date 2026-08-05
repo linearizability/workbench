@@ -1,0 +1,170 @@
+/* 视频生成器差异样式 */
+
+.vg-config-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 0.25rem 0.5rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.field-label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.field-input {
+  width: 90px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  outline: none;
+}
+
+.field-color {
+  width: 42px;
+  padding: 0;
+}
+
+.vg-filename .field-input {
+  width: 180px;
+}
+
+/* 颜色模式切换 */
+.vg-color-mode {
+  gap: var(--spacing-xs);
+}
+
+.vg-mode-toggle {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.vg-mode-btn {
+  padding: 4px 10px;
+  border: none;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.vg-mode-btn:not(:last-child) {
+  border-right: 1px solid var(--color-border);
+}
+
+.vg-mode-btn.is-active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.vg-mode-btn:hover:not(.is-active) {
+  background: var(--color-bg-tertiary);
+}
+
+.vg-random-btn {
+  padding: 4px 6px;
+  font-size: 12px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+}
+
+.vg-preview-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.vg-canvas {
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-secondary);
+  image-rendering: pixelated;
+}
+
+.vg-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.vg-progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.vg-progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+  width: 0;
+  transition: width 0.1s linear;
+}
+
+.vg-progress-text {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  min-width: 100px;
+  text-align: right;
+}
+
+.vg-meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family-mono);
+  margin-bottom: var(--spacing-md);
+}
+
+.vg-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.vg-video-player {
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: #000;
+}
+
+@media (max-width: 768px) {
+  .vg-config-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vg-filename .field-input {
+    width: 100%;
+  }
+}
