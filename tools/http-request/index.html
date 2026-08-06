@@ -27,13 +27,25 @@
           <option value="POST">POST</option>
           <option value="PUT">PUT</option>
           <option value="DELETE">DELETE</option>
-          <option value="PATCH">PATCH></option>
+          <option value="PATCH">PATCH</option>
           <option value="HEAD">HEAD</option>
           <option value="OPTIONS">OPTIONS</option>
         </select>
         <input type="text" class="http-url" id="http-url" placeholder="https://api.example.com/users" autocomplete="off" spellcheck="false">
         <button class="btn btn-primary" data-action="send">发送</button>
         <button class="btn btn-secondary" data-action="clear">清空</button>
+      </div>
+
+      <!-- CORS 代理 -->
+      <div class="http-proxy-bar">
+        <label class="http-proxy-toggle">
+          <input type="checkbox" id="proxy-toggle">
+          <span>通过 CORS 代理发送</span>
+        </label>
+        <input type="text" class="http-proxy-url" id="proxy-url"
+          placeholder="https://corsproxy.io/?"
+          value="https://corsproxy.io/?"
+          autocomplete="off" spellcheck="false">
       </div>
 
       <div class="http-config">

@@ -13,12 +13,16 @@
      */
     async run({ input, params }) {
       const method = params.method || 'GET';
-      const url = (input.url ?? params.url ?? '').trim();
+      const originalUrl = (input.url ?? params.url ?? '').trim();
       const timeout = Number(params.timeout) || 30000;
+      const proxyUrl = (params.proxyUrl || '').trim();
 
-      if (!url) {
+      if (!originalUrl) {
         return { output: null, error: 'URL 不能为空' };
       }
+
+      // CORS 代理：拼到代理地址后面
+      const fetchUrl = proxyUrl ? proxyUrl + encodeURIComponent(originalUrl) : originalUrl;
 
       // 解析 headers
       let headers = {};
@@ -65,7 +69,7 @@
         const fetchOpts = { method, headers, signal: controller.signal };
         if (body !== null) fetchOpts.body = body;
 
-        const res = await fetch(url, fetchOpts);
+        const res = await fetch(fetchUrl, fetchOpts);
         clearTimeout(timer);
 
         const duration = Math.round(performance.now() - start);
