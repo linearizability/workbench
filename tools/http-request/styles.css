@@ -7,9 +7,61 @@
   padding: var(--spacing-md);
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  align-items: center;
+}
+
+/* ── CORS 代理栏 ── */
+.http-proxy-bar {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   margin-bottom: var(--spacing-md);
   align-items: center;
+}
+
+.http-proxy-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.http-proxy-toggle input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.http-proxy-url {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family-mono);
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  opacity: 0.5;
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.http-proxy-toggle input:checked ~ .http-proxy-url,
+.http-proxy-bar:has(input:checked) .http-proxy-url {
+  opacity: 1;
+  color: var(--color-text);
+}
+
+.http-proxy-url:focus {
+  border-color: var(--color-primary);
 }
 
 .http-method {
@@ -232,6 +284,19 @@
 
 .http-cors-tip strong {
   color: var(--color-warning);
+}
+
+/* ── 代理标记 ── */
+.http-proxy-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-info);
+  background: var(--color-info-fade-8);
+  border: 1px solid var(--color-info);
+  border-radius: 99px;
+  letter-spacing: 0.3px;
 }
 
 /* ── 代码生成 ── */

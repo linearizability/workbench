@@ -29,6 +29,9 @@
     el.bodyRawWrapper  = document.getElementById('body-raw-wrapper');
     el.bodyFormWrapper = document.getElementById('body-form-wrapper');
     el.bodyNoneWrapper = document.getElementById('body-none-wrapper');
+
+    el.proxyToggle = document.getElementById('proxy-toggle');
+    el.proxyUrl    = document.getElementById('proxy-url');
   }
 
   function bindEvents() {
@@ -96,9 +99,14 @@
     el.status.textContent = '发送中…';
     el.status.style.color = 'var(--color-info)';
 
+    const proxyUrl = el.proxyToggle.checked ? el.proxyUrl.value.trim() : '';
+
+    el.status.textContent = proxyUrl ? '发送中…（代理）' : '发送中…';
+    el.status.style.color = 'var(--color-info)';
+
     const result = await window.TOOL_HTTP_REQUEST_CORE.run({
       input: {},
-      params: { method, url, bodyType, body, headers, timeout: 30000 }
+      params: { method, url, bodyType, body, headers, timeout: 30000, proxyUrl }
     });
 
     if (result.error) {
@@ -109,12 +117,12 @@
     }
 
     const data = result.output;
-    renderResponse(data);
+    renderResponse(data, !!proxyUrl);
     el.status.textContent = `${data.status} ${data.statusText} · ${data.duration}ms`;
     el.status.style.color = data.ok ? 'var(--color-success)' : 'var(--color-danger)';
   }
 
-  function renderResponse(data) {
+  function renderResponse(data, viaProxy) {
     // 尝试格式化 JSON
     let bodyHtml = escapeHtml(data.body);
     try {
@@ -129,8 +137,11 @@
       headerHtml += `<div class="http-resp-header"><span class="http-resp-hkey">${escapeHtml(key)}:</span> <span class="http-resp-hval">${escapeHtml(val)}</span></div>`;
     }
 
+    const proxyBadge = viaProxy ? '<span class="http-proxy-badge">via proxy</span>' : '';
+
     let html = `<div class="http-resp-meta">
       <span class="http-resp-status ${data.ok ? 'is-ok' : 'is-err'}">${data.status} ${escapeHtml(data.statusText)}</span>
+      ${proxyBadge}
       <span class="http-resp-time">${data.duration}ms</span>
     </div>`;
 
@@ -148,8 +159,8 @@
     if (/CORS|fetch|Failed to fetch|NetworkError/i.test(errMessage)) {
       tip = `<div class="http-cors-tip">
         <strong>请求被浏览器安全策略阻止（CORS）</strong><br>
-        目标服务器未配置跨域响应头，浏览器禁止前端 JavaScript 直接访问。<br>
-        请使用下方生成的 <strong>curl</strong> 命令在终端中执行。
+        目标服务器未配置跨域响应头，浏览器禁止直接访问。<br>
+        试试勾选上方 <strong>"通过 CORS 代理发送"</strong>，或使用下方生成的 <strong>curl</strong> 命令在终端执行。
       </div>`;
     }
 
@@ -174,6 +185,8 @@
     const url = el.url.value.trim() || 'https://api.example.com/users';
     const headers = collectHeaders();
     let body = null;
+    const proxyUrl = el.proxyToggle.checked ? el.proxyUrl.value.trim() : '';
+    const fetchUrl = proxyUrl ? proxyUrl + encodeURIComponent(url) : url;
 
     if (el.bodyType.value === 'raw') {
       body = el.bodyRaw.value;
@@ -183,7 +196,7 @@
 
     let code = '';
     if (codeMode === 'curl') {
-      code = genCurl(method, url, headers, body);
+      code = genCurl(method, fetchUrl, headers, body);
     } else if (codeMode === 'python') {
       code = genPython(method, url, headers, body);
     } else {
